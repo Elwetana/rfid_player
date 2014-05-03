@@ -1,1 +1,6 @@
 *.pyc
+data/*
+src/todo
+*.db
+*.xml
+src/_old/*

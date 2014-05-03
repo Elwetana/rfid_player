@@ -4,6 +4,7 @@
 
 import multiprocessing
 import os
+import logging
 
 class VolumeControl(multiprocessing.Process):
 
@@ -17,11 +18,11 @@ class VolumeControl(multiprocessing.Process):
             if self.pipe.poll(1):
                 cmnd = self.pipe.recv()
                 if cmnd[0] == 'quit':
-                    print "Volume control termnating"
+                    logging.warning("Volume control termnating")
                     break
                 elif cmnd[0] == 'up':
                     self.set_volume += cmnd[1]
-                elif char == 'down':
+                elif cmnd[0] == 'down':
                     self.set_volume -= cmnd[1]
                 #print 'Volume = {volume}%' .format(volume = set_volume)
                 set_vol_cmd = 'sudo amixer cset numid=1 -- {volume}% > /dev/null' .format(volume = self.set_volume)

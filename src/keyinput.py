@@ -3,49 +3,42 @@
 import multiprocessing
 from multiprocessing.managers import BaseManager
 from evdev import InputDevice, categorize, ecodes, KeyEvent
-import xml.parsers.expat
+import xml.etree.ElementTree as ET
+import logging
+
+logger = logging.getLogger("root.keyinput")
 
 class KeyListener(multiprocessing.Process):
 
     def __init__(self, msg_queue, keymap_file = '../data/keymap.xml'):
         multiprocessing.Process.__init__(self)
-        self.debug = 0
         self.msg_queue = msg_queue
         self.read_keymap(keymap_file)
 
     def run(self):
         dev = InputDevice('/dev/input/event0')
-        print "Listener running"
+        logger.warning("Listener running")
         for event in dev.read_loop():
             if event.type == ecodes.EV_KEY:
-                if self.debug > 3:
-                    print(categorize(event))
+                logger.info(categorize(event))
                 if event.type == ecodes.EV_KEY and event.value == 1: #event.value == 1 => this is key down
                     code = event.code
-                    if self.debug > 2:
-                        print "Key code:", code
+                    logger.info("Key code: %s" % code)
                     if code in self.actions:
-                        if self.debug > 2:
-                            print 'Adding message to queue:', self.actions[code]
+                        logger.info("Adding message to queue: %s" % (self.actions[code],))
                         self.msg_queue.put((self.actions[code],0))
                         if self.actions[code] == 'quit':
                             break
-        print "KeyListener terminating"
+        logger.warning("KeyListener terminating")
 
-    def update_actions(self, name, attrs):
-        if name == 'map':
-            self.actions[ecodes.ecodes[attrs['key']]] = attrs['action']
-    
     def read_keymap(self, keymap_file):
         self.actions = {}
-        f = open(keymap_file, 'r')
-        p = xml.parsers.expat.ParserCreate()
-        p.StartElementHandler = self.update_actions
-        p.ParseFile(f)
-        f.close()
-        print 'Keymap loaded'
-        if self.debug > 2:
-            print self.actions
+        self.tree = ET.parse(keymap_file)
+        actionmap = self.tree.getroot()
+        for action in actionmap:
+            self.actions[ecodes.ecodes[action.get('key')]] = action.get('action')
+        logger.info('Keymap loaded')
+        logger.debug(self.actions)
 
 if __name__ == "__main__":
     print 'This is module for KeyListener class'
