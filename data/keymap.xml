@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<keymap>
+    <map key="KEY_A" action="next" />
+    <map key="KEY_B" action="prev" />
+    <map key="KEY_S" action="stop" />
+    <map key="KEY_D" action="play" />
+    <map key="KEY_E" action="vol_up" />
+    <map key="KEY_F" action="vol_down" />
+    <map key="KEY_Q" action="quit" />
+</keymap>
