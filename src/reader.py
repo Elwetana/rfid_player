@@ -4,6 +4,16 @@ import serial, sys
 import multiprocessing
 import xml.etree.ElementTree as ET
 import logging
+from message import Msg
+
+logger = logging.getLogger("root.reader")
+
+class ReaderMsg(Msg):
+
+    def __init__(self, rfid_data):
+        self.msg_type = 'rfid'
+        self.value = rfid_data
+        self.needs_ack = True
 
 class RfidReader(multiprocessing.Process):
 
@@ -35,7 +45,7 @@ class RfidReader(multiprocessing.Process):
                     rfidData = rfidData[1:-1]
                     logging.info("Card Scanned: %s" % rfidData)
                     if rfidData in self.cards:
-                        self.msg_queue.put(('rfid',self.cards[rfidData]))
+                        self.msg_queue.put(ReaderMsg(self.cards[rfidData]))
                     else:
                         logging.info("Adding new card")
                         self.add_card(rfidData)
@@ -44,7 +54,8 @@ class RfidReader(multiprocessing.Process):
                     if cmnd[0] == 'quit':
                         break
         except:
-            logging.error("error: %s" % sys.exc_info())
+            #logging.error("error: %s" % sys.exc_info())
+            print sys.exc_info()
 
         finally:
             self.ser.close()

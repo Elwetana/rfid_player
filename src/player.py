@@ -1,10 +1,26 @@
 #!/usr/bin/python
 import multiprocessing
+from message import Msg
 import mad, ao, sys
 import sqlite3, os, subprocess, socket
 import xml.etree.ElementTree as ET
 import logging
 import urlparse
+
+logger = logging.getLogger("root.player")
+
+class PlayerMsg(Msg):
+
+    def __init__(self, state, is_radio = False):
+        self.msg_type = 'player'
+        self.value = state
+        self.is_radio = is_radio
+
+class SavePosMsg(Msg):
+
+    def __init__(self, value):
+        self.msg_type = 'save_pos'
+        self.value = value
 
 class Player(multiprocessing.Process):
 
@@ -30,24 +46,32 @@ class Player(multiprocessing.Process):
                     self.isRadio = (self.entity_type == 'radio')
                     self.set_seek_time()
                     self.play()
-                    self.msg_queue.put(('player_stopped',0))
                 elif cmnd[0] == 'next':
                     if self.folder_name != '':
                         self.file_index += 1
                         self.seek_time = 0
                         self.play()
-                    self.msg_queue.put(('player_stopped',0))
                 elif cmnd[0] == 'prev':
                     if self.folder_name != '':
                         if self.seek_time < 10000:
                             self.file_index -= 1
                         self.seek_time = 0
                         self.play()
-                    self.msg_queue.put(('player_stopped',0))
+                elif cmnd[0] == 'ff':
+                    if self.folder_name != '':
+                        self.seek_time += 30000
+                        self.play(False)
+                elif cmnd[0] == 'bb':
+                    if self.folder_name != '':
+                        self.seek_time -= 30000
+                        if self.seek_time < 0:
+                            self.seek_time = 0
+                        self.play(False)
                 elif cmnd[0] == 'quit':
                     break
                 else:
                     logging.error("Invalid message for player: %s" % cmnd[0])
+                self.msg_queue.put(PlayerMsg('stopped'))
         self.fest.close()
         self.fest_process.kill()
         logging.warning('Player terminating')
@@ -105,9 +129,10 @@ class Player(multiprocessing.Process):
         files.sort()
         return files
 
-    def play(self):
+    def play(self, do_speak = True):
         files = self.get_files(self.folder_name)
-        self.speak(self.seek_time, self.file_index)
+        if do_speak:
+            self.speak(self.seek_time, self.file_index)
         why_stopped = 'finished'
         while self.file_index < len(files) and why_stopped == 'finished':
             if self.isRadio:
@@ -123,7 +148,7 @@ class Player(multiprocessing.Process):
             iSave = 0
             why_stopped = ''
             logging.info("Starting to play")
-            self.msg_queue.put(('player_started', self.isRadio))
+            self.msg_queue.put(PlayerMsg('started', self.isRadio))
             while True:
                 buf = mf.read()
                 #print len(buf) #4608
@@ -136,7 +161,7 @@ class Player(multiprocessing.Process):
                 if not self.isRadio:
                     iSave += 1
                     if iSave == 100:
-                        self.msg_queue.put(('save_pos', (self.seek_time, self.file_index, self.folder_name)))
+                        self.msg_queue.put(SavePosMsg((self.seek_time, self.file_index, self.folder_name)))
                         iSave = 0
             self.seek_time = mf.current_time()
             if why_stopped == 'finished':

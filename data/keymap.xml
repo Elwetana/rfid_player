@@ -7,6 +7,6 @@
     <map key="KEY_UP" action="vol_up" />
     <map key="KEY_DOWN" action="vol_down" />
     <map key="KEY_Q" action="quit" />
-    <map key="KEY_J" action="ff" />
-    <map key="KEY_K" action="bb" />
+    <map key="KEY_K" action="ff" />
+    <map key="KEY_J" action="bb" />
 </keymap>

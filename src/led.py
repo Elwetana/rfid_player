@@ -5,6 +5,8 @@ import RPi.GPIO as GPIO
 import os, time
 import logging
 
+logger = logging.getLogger("root.led")
+
 class LedControl(multiprocessing.Process):
 
     def __init__(self, pipe):
@@ -30,9 +32,11 @@ class LedControl(multiprocessing.Process):
                 elif cmnd[0] == 'ack':
                     self.ack()
                 elif cmnd[0] == 'play':
+                    logging.info("Led to play as %s" % cmnd[1])
                     self.is_playing = cmnd[1]
                     self.play_led()
                 elif cmnd[0] == 'stop':
+                    logging.info("led to play stop")
                     self.is_playing = ''
                     self.play_on = False
                     self.stop_led()

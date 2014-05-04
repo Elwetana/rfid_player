@@ -2,11 +2,19 @@
 
 import multiprocessing
 from multiprocessing.managers import BaseManager
+from message import Msg
 from evdev import InputDevice, categorize, ecodes, KeyEvent
 import xml.etree.ElementTree as ET
 import logging
 
 logger = logging.getLogger("root.keyinput")
+
+class KeyMsg(Msg):
+
+    def __init__(self, action):
+        self.msg_type = 'key'
+        self.value = action
+        self.needs_ack = True
 
 class KeyListener(multiprocessing.Process):
 
@@ -26,7 +34,7 @@ class KeyListener(multiprocessing.Process):
                     logger.info("Key code: %s" % code)
                     if code in self.actions:
                         logger.info("Adding message to queue: %s" % (self.actions[code],))
-                        self.msg_queue.put((self.actions[code],0))
+                        self.msg_queue.put(KeyMsg(self.actions[code]))
                         if self.actions[code] == 'quit':
                             break
         logger.warning("KeyListener terminating")

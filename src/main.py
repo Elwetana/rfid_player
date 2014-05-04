@@ -24,6 +24,13 @@ class Dispatcher:
         self.time = 0
         self.workers = {}
         self.pipes = {}
+        self.lastval = ''
+        self.actions = {
+            'rfid': self.msg_rfid,
+            'key': self.msg_keys,
+            'player': self.msg_player,
+            'save_pos': self.msg_savepos
+        }
 
     def create_worker(self, worker_name, worker_class, needs_pipe, needs_queue):
         if needs_pipe:
@@ -45,65 +52,69 @@ class Dispatcher:
         self.create_worker('player', Player, True, True)
         self.create_worker('rfid_reader', RfidReader, True, True)
 
-        lastval = None 
         while True:
-            msg,val = self.msg_queue.get()
-            if msg == 'rfid':
-                logging.info("RFID message received, value: %s" % val)
+            msg = self.msg_queue.get()
+            logging.info("Message of type %s received" % msg.msg_type)
+            if msg.needs_ack:
                 self.pipes['led_control'].send(('ack',0))
-                #if time.time() - self.time > 3: #to avoid accidental multiple scans
-                if lastval != val or self.state != State.playing:
-                    if val in self.items:
-                        self.time = time.time()
-                        self.state = State.playing
-                        self.pipes['player'].send(('play',self.items[val]))
-                        lastval = val
-                    else:
-                        logging.error("RFID value not present in list of items")
-                else:
-                    logging.info("Ignoring accidental scan")
-            elif msg == 'save_pos':
-                self.save_pos(*val)
-            elif msg == 'player_started':
-                if val:
-                    self.pipes['led_control'].send(('play','radio'))
-                else:
-                    self.pipes['led_control'].send(('play','local'))
-            elif msg == 'player_stopped':
-                self.state = State.stopped
-                self.pipes['led_control'].send(('stop',0))
-            elif msg == 'next':
-                self.pipes['led_control'].send(('ack',0))
-                logging.info('Message next receieved')
-                self.pipes['player'].send(('next',0))
-            elif msg == 'prev':
-                self.pipes['led_control'].send(('ack',0))
-                logging.info('Message prev receieved')
-                self.pipes['player'].send(('prev',0))
-            elif msg == 'stop':
-                self.pipes['led_control'].send(('ack',0))
-                logging.info('Trying to stop the player')
-                self.pipes['player'].send(('stop',0))
-            elif msg == 'vol_up':
-                self.pipes['led_control'].send(('ack',0))
-                logging.info('Volume up')
-                self.pipes['volume_control'].send(('up', 5))
-            elif msg == 'vol_down':
-                self.pipes['led_control'].send(('ack',0))
-                logging.info('Volume down')
-                self.pipes['volume_control'].send(('down', 5))
-            elif msg == 'quit':
-                self.pipes['led_control'].send(('ack',0))
-                self.workers['key_listener'].join()
-                for worker in self.workers:
-                    if worker != 'key_listener':
-                        logging.warning('Trying to terminate the %s' % worker)
-                        self.pipes[worker].send(('quit',0))
-                        self.workers[worker].join()
+            if self.actions.get(msg.msg_type, self.msg_unknown)(msg):
                 break
-            else:
-                logging.info("Unknown message: %s" % msg)
+        self.workers['key_listener'].join()
+        for worker in self.workers:
+            if worker != 'key_listener':
+                logging.warning('Trying to terminate the %s' % worker)
+                self.pipes[worker].send(('quit',0))
+                self.workers[worker].join()
         logging.warning('Terminating')
+
+    def msg_rfid(self, msg):
+        logging.info("RFID message received, value: %s" % msg.value)
+        if self.lastval != msg.value or self.state != State.playing:
+            if msg.value in self.items:
+                self.time = time.time()
+                self.state = State.playing
+                self.pipes['player'].send(('play',self.items[msg.value]))
+                self.lastval = msg.value
+            else:
+                logging.error("RFID value not present in list of items")
+        else:
+            logging.info("Ignoring accidental scan")
+        return False
+
+    def msg_keys(self, msg):
+        if msg.value == 'quit':
+            return True
+        to_player = ['next', 'prev', 'stop', 'play', 'ff', 'bb']
+        to_volume = {'vol_up': ('up', 5), 'vol_down': ('down', 5)}
+        if msg.value in to_player:
+            logging.info('Message %s receieved, sending to player' % msg.value)
+            self.pipes['player'].send((msg.value,0))
+        elif msg.value in to_volume:
+            logging.info('Message %s receieved, sending to volume control' % msg.value)
+            self.pipes['volume_control'].send(to_volume[msg.value])
+        else:
+            logging.error('Unknown message from keyboard')
+        return False
+
+    def msg_player(self, msg):
+        logging.info('Message to LED controller')
+        if msg == 'started':
+            if msg.is_radio:
+                self.pipes['led_control'].send(('play','radio'))
+            else:
+                self.pipes['led_control'].send(('play','local'))
+        elif msg == 'stopped':
+            self.state = State.stopped
+            self.pipes['led_control'].send(('stop',0))
+        return False
+
+    def msg_savepos(self, msg):
+        self.save_pos(*msg.value)
+        return False
+
+    def msg_unknown(self, msg):
+        logging.info("Unknown message: %s" % msg)
+        return False
 
     def save_pos(self, seek_time, file_index, folder_name):
         logging.debug("Saving position")
@@ -137,12 +148,12 @@ class Dispatcher:
 if __name__ == "__main__":
     os.chdir(os.path.dirname(__file__))
     logging.basicConfig(filename='../data/main.log', level=logging.INFO)
-    fout = open('../data/stdout.log', 'a')
-    ferr = open('../data/stderr.log', 'a')
-    fout.write("---------------------------------------\n**** %s\n" % time.asctime())
-    ferr.write("---------------------------------------\n**** %s\n" % time.asctime())
-    sys.stdout = fout
-    sys.stderr = ferr
+    #fout = open('../data/stdout.log', 'a')
+    #ferr = open('../data/stderr.log', 'a')
+    #fout.write("---------------------------------------\n**** %s\n" % time.asctime())
+    #ferr.write("---------------------------------------\n**** %s\n" % time.asctime())
+    #sys.stdout = fout
+    #sys.stderr = ferr
     print 'Starting'
     dispatcher = Dispatcher()
     dispatcher.start()
