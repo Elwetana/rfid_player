@@ -7,8 +7,9 @@ import logging
 from keyinput import KeyListener
 from player import Player
 from volume import VolumeControl
+from led import LedControl
 from reader import RfidReader
-import os, time
+import os, time, sys
 import sqlite3
 
 class State:
@@ -21,35 +22,41 @@ class Dispatcher:
         self.read_list(list_file, data_dir)
         self.state = State.stopped
         self.time = 0
+        self.workers = {}
+        self.pipes = {}
+
+    def create_worker(self, worker_name, worker_class, needs_pipe, needs_queue):
+        if needs_pipe:
+            to_worker, from_worker = multiprocessing.Pipe()
+            if needs_queue:
+                self.workers[worker_name] = worker_class(from_worker, self.msg_queue)
+            else:
+                self.workers[worker_name] = worker_class(from_worker)
+            self.pipes[worker_name] = to_worker
+        else:
+            self.workers[worker_name] = worker_class(self.msg_queue)
+        self.workers[worker_name].start()
 
     def start(self):
-        msg_queue = multiprocessing.Queue()
-        key_listener = KeyListener(msg_queue)
-        key_listener.start()
-        
-        self.to_player, from_player = multiprocessing.Pipe()
-        self.player = Player(from_player, msg_queue)
-        self.player.start()
-
-        self.to_volume, from_volume = multiprocessing.Pipe()
-        self.volume_control = VolumeControl(from_volume)
-        self.volume_control.start()
-
-        self.to_reader, from_reader = multiprocessing.Pipe()
-        self.rfid_reader = RfidReader(from_reader, msg_queue)
-        self.rfid_reader.start()
+        self.msg_queue = multiprocessing.Queue()
+        self.create_worker('key_listener', KeyListener, False, True)
+        self.create_worker('led_control', LedControl, True, False)
+        self.create_worker('volume_control', VolumeControl, True, False)
+        self.create_worker('player', Player, True, True)
+        self.create_worker('rfid_reader', RfidReader, True, True)
 
         lastval = None 
         while True:
-            msg,val = msg_queue.get()
+            msg,val = self.msg_queue.get()
             if msg == 'rfid':
                 logging.info("RFID message received, value: %s" % val)
+                self.pipes['led_control'].send(('ack',0))
                 #if time.time() - self.time > 3: #to avoid accidental multiple scans
-                if lastval != val:
+                if lastval != val or self.state != State.playing:
                     if val in self.items:
                         self.time = time.time()
                         self.state = State.playing
-                        self.to_player.send(('play',self.items[val]))
+                        self.pipes['player'].send(('play',self.items[val]))
                         lastval = val
                     else:
                         logging.error("RFID value not present in list of items")
@@ -57,38 +64,46 @@ class Dispatcher:
                     logging.info("Ignoring accidental scan")
             elif msg == 'save_pos':
                 self.save_pos(*val)
+            elif msg == 'player_started':
+                if val:
+                    self.pipes['led_control'].send(('play','radio'))
+                else:
+                    self.pipes['led_control'].send(('play','local'))
             elif msg == 'player_stopped':
                 self.state = State.stopped
+                self.pipes['led_control'].send(('stop',0))
             elif msg == 'next':
+                self.pipes['led_control'].send(('ack',0))
                 logging.info('Message next receieved')
-                self.to_player.send(('next',0))
+                self.pipes['player'].send(('next',0))
             elif msg == 'prev':
+                self.pipes['led_control'].send(('ack',0))
                 logging.info('Message prev receieved')
-                self.to_player.send(('prev',0))
+                self.pipes['player'].send(('prev',0))
             elif msg == 'stop':
+                self.pipes['led_control'].send(('ack',0))
                 logging.info('Trying to stop the player')
-                self.to_player.send(('stop',0))
+                self.pipes['player'].send(('stop',0))
             elif msg == 'vol_up':
+                self.pipes['led_control'].send(('ack',0))
                 logging.info('Volume up')
-                self.to_volume.send(('up', 5))
+                self.pipes['volume_control'].send(('up', 5))
             elif msg == 'vol_down':
+                self.pipes['led_control'].send(('ack',0))
                 logging.info('Volume down')
-                self.to_volume.send(('down', 5))
+                self.pipes['volume_control'].send(('down', 5))
             elif msg == 'quit':
-                logging.warning('Trying to terminate the player')
-                self.to_player.send(('quit',0))
-                self.player.join()
-                logging.warning('Trying to terminate the volume control')
-                self.to_volume.send(('quit',0))
-                self.volume_control.join()
-                logging.warning('Trying to terminate the rfid reader')
-                self.to_reader.send(('quit',0))
-                self.rfid_reader.join()
+                self.pipes['led_control'].send(('ack',0))
+                self.workers['key_listener'].join()
+                for worker in self.workers:
+                    if worker != 'key_listener':
+                        logging.warning('Trying to terminate the %s' % worker)
+                        self.pipes[worker].send(('quit',0))
+                        self.workers[worker].join()
                 break
             else:
                 logging.info("Unknown message: %s" % msg)
         logging.warning('Terminating')
-        key_listener.join()
 
     def save_pos(self, seek_time, file_index, folder_name):
         logging.debug("Saving position")
@@ -120,7 +135,14 @@ class Dispatcher:
 
 
 if __name__ == "__main__":
+    os.chdir(os.path.dirname(__file__))
     logging.basicConfig(filename='../data/main.log', level=logging.INFO)
+    fout = open('../data/stdout.log', 'a')
+    ferr = open('../data/stderr.log', 'a')
+    fout.write("---------------------------------------\n**** %s\n" % time.asctime())
+    ferr.write("---------------------------------------\n**** %s\n" % time.asctime())
+    sys.stdout = fout
+    sys.stderr = ferr
     print 'Starting'
     dispatcher = Dispatcher()
     dispatcher.start()

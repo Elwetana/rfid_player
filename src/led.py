@@ -1,0 +1,70 @@
+#!/usr/bin/python
+
+import multiprocessing
+import RPi.GPIO as GPIO
+import os, time
+import logging
+
+class LedControl(multiprocessing.Process):
+
+    def __init__(self, pipe):
+        multiprocessing.Process.__init__(self)
+        self.pipe = pipe
+        self.pins = {'green2': 11, 'yellow2': 13, 'red1': 15}
+        self.flash_interval = 0.1
+        self.blink_interval = 0.25
+
+    def run(self):
+        self.init_pins()
+        self.stop_led()
+        self.is_playing = ''
+        self.play_on = False
+        while True:
+            if self.pipe.poll(self.blink_interval):
+                cmnd = self.pipe.recv()
+                if cmnd[0] == 'quit':
+                    self.play_on = True
+                    self.play_led()
+                    logging.warning("Volume control terminating")
+                    break
+                elif cmnd[0] == 'ack':
+                    self.ack()
+                elif cmnd[0] == 'play':
+                    self.is_playing = cmnd[1]
+                    self.play_led()
+                elif cmnd[0] == 'stop':
+                    self.is_playing = ''
+                    self.play_on = False
+                    self.stop_led()
+                else:
+                    logging.error("Message not recognized for led module: %s" % cmnd[0])
+            if self.is_playing != '':
+                self.play_led()
+
+        logging.info('Terminating Led Controler')
+
+    def init_pins(self):
+        GPIO.setmode(GPIO.BOARD) ## Use board pin numbering
+        for pin in self.pins:
+            GPIO.setup(self.pins[pin], GPIO.OUT) ## Setup GPIO Pin 7 to OUT
+
+    def ack(self):
+        GPIO.output(self.pins['red1'], True)
+        time.sleep(self.flash_interval)
+        GPIO.output(self.pins['red1'], False)
+
+    def stop_led(self):
+        GPIO.output(self.pins['yellow2'], False)
+        GPIO.output(self.pins['green2'], True)
+
+    def play_led(self):
+        if self.play_on:
+            GPIO.output(self.pins['yellow2'], False)
+            GPIO.output(self.pins['green2'], False)
+        else:
+            GPIO.output(self.pins['yellow2'], self.is_playing == 'radio')
+            GPIO.output(self.pins['green2'], self.is_playing == 'local')
+        self.play_on = not self.play_on
+
+if __name__ == "__main__":
+    print "LedControl class"

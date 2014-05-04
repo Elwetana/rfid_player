@@ -20,7 +20,7 @@ class KeyListener(multiprocessing.Process):
         logger.warning("Listener running")
         for event in dev.read_loop():
             if event.type == ecodes.EV_KEY:
-                logger.info(categorize(event))
+                logger.debug(categorize(event))
                 if event.type == ecodes.EV_KEY and event.value == 1: #event.value == 1 => this is key down
                     code = event.code
                     logger.info("Key code: %s" % code)

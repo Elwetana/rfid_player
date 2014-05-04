@@ -123,6 +123,7 @@ class Player(multiprocessing.Process):
             iSave = 0
             why_stopped = ''
             logging.info("Starting to play")
+            self.msg_queue.put(('player_started', self.isRadio))
             while True:
                 buf = mf.read()
                 #print len(buf) #4608
