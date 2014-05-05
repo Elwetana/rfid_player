@@ -35,35 +35,35 @@ class RfidReader(multiprocessing.Process):
 
         self.ser.open()
         if self.ser.isOpen():
-            logging.warning("Open: " + self.ser.portstr)
-        logging.warning("RFID reader reading")
+            logger.warning("Open: " + self.ser.portstr)
+        logger.warning("RFID reader reading")
         try:
             while True:
                 self.ser.flushInput()
                 rfidData = self.ser.readline().strip()
                 if len(rfidData) > 0:
                     rfidData = rfidData[1:-1]
-                    logging.info("Card Scanned: %s" % rfidData)
+                    logger.info("Card Scanned: %s" % rfidData)
                     if rfidData in self.cards:
                         self.msg_queue.put(ReaderMsg(self.cards[rfidData]))
                     else:
-                        logging.info("Adding new card")
+                        logger.info("Adding new card")
                         self.add_card(rfidData)
                 if self.pipe.poll():
                     cmnd = self.pipe.recv()
                     if cmnd[0] == 'quit':
                         break
         except:
-            #logging.error("error: %s" % sys.exc_info())
+            #logger.error("error: %s" % sys.exc_info())
             print sys.exc_info()
 
         finally:
             self.ser.close()
-        logging.warning("RFID reader terminating")
+        logger.warning("RFID reader terminating")
 
     def add_card(self, rfid):
         newkey = max(self.cards.values()) + 1
-        logging.info("Adding card rfid: %s, id: %s" % (rfid, newkey))
+        logger.info("Adding card rfid: %s, id: %s" % (rfid, newkey))
         self.tree.getroot().append(ET.Element(tag='card', attrib={'rfid': rfid, 'key': "%s" % newkey}))
         self.tree.write(self.cardmap_file, encoding='UTF-8')
         self.cards[rfid] = newkey
@@ -75,8 +75,8 @@ class RfidReader(multiprocessing.Process):
         cardmap = self.tree.getroot()
         for card in cardmap:
             self.cards[card.attrib['rfid']] = int(card.attrib['key'])
-        logging.info('Card map loaded')
-        logging.debug(self.cards)
+        logger.info('Card map loaded')
+        logger.debug(self.cards)
 
 if __name__ == "__main__":
     print "RFID card reader class"

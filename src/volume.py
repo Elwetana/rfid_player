@@ -6,6 +6,8 @@ import multiprocessing
 import os
 import logging
 
+logger = logging.getLogger("root.volume")
+
 class VolumeControl(multiprocessing.Process):
 
     def __init__(self, pipe):
@@ -18,7 +20,7 @@ class VolumeControl(multiprocessing.Process):
             if self.pipe.poll(1):
                 cmnd = self.pipe.recv()
                 if cmnd[0] == 'quit':
-                    logging.warning("Volume control termnating")
+                    logger.warning("Volume control termnating")
                     break
                 elif cmnd[0] == 'up':
                     self.set_volume += cmnd[1]

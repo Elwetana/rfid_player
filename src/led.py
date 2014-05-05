@@ -23,29 +23,29 @@ class LedControl(multiprocessing.Process):
         self.play_on = False
         while True:
             if self.pipe.poll(self.blink_interval):
+                logger.info("led message received")
                 cmnd = self.pipe.recv()
                 if cmnd[0] == 'quit':
                     self.play_on = True
                     self.play_led()
-                    logging.warning("Volume control terminating")
                     break
                 elif cmnd[0] == 'ack':
                     self.ack()
                 elif cmnd[0] == 'play':
-                    logging.info("Led to play as %s" % cmnd[1])
+                    logger.info("Led to play as %s" % cmnd[1])
                     self.is_playing = cmnd[1]
                     self.play_led()
                 elif cmnd[0] == 'stop':
-                    logging.info("led to play stop")
+                    logger.info("led to play stop")
                     self.is_playing = ''
                     self.play_on = False
                     self.stop_led()
                 else:
-                    logging.error("Message not recognized for led module: %s" % cmnd[0])
+                    logger.error("Message not recognized for led module: %s" % cmnd[0])
             if self.is_playing != '':
                 self.play_led()
 
-        logging.info('Terminating Led Controler')
+        logger.info('Terminating Led Controler')
 
     def init_pins(self):
         GPIO.setmode(GPIO.BOARD) ## Use board pin numbering

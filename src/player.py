@@ -70,11 +70,11 @@ class Player(multiprocessing.Process):
                 elif cmnd[0] == 'quit':
                     break
                 else:
-                    logging.error("Invalid message for player: %s" % cmnd[0])
+                    logger.error("Invalid message for player: %s" % cmnd[0])
                 self.msg_queue.put(PlayerMsg('stopped'))
         self.fest.close()
         self.fest_process.kill()
-        logging.warning('Player terminating')
+        logger.warning('Player terminating')
 
     def set_seek_time(self):
         #get last played position
@@ -86,13 +86,13 @@ class Player(multiprocessing.Process):
         file_index = 0
         seek_time = 0
         if row is None:
-            logging.warning('creating record for %s in lastpos database' % self.folder_name)
+            logger.warning('creating record for %s in lastpos database' % self.folder_name)
             with conn:
                 conn.execute('insert into lastpos (foldername, fileindex, position) values (?, ?, ?)', (self.folder_name, 0, 0))
         else:
             file_index = row[1]
             seek_time = row[2]
-            logging.warning('Resuming file %s in %s from %s' % (file_index, self.folder_name, seek_time))
+            logger.warning('Resuming file %s in %s from %s' % (file_index, self.folder_name, seek_time))
         self.seek_time, self.file_index = seek_time, file_index
         return True
 
@@ -109,8 +109,8 @@ class Player(multiprocessing.Process):
         sock.connect((host, int(port)))
         sock.send('GET %s HTTP/1.0\r\n\r\n' % path)
         reply = sock.recv(1500)
-        logging.info("Radio server says: %s" % repr(reply))
-        logging.info("Prepared radio file. Scheme: %s, host: %s, port: %s, path: %s:" % (scheme, host, port, path))
+        logger.info("Radio server says: %s" % repr(reply))
+        logger.info("Prepared radio file. Scheme: %s, host: %s, port: %s, path: %s:" % (scheme, host, port, path))
         return sock.makefile()
 
     def get_audio_file(self, files):
@@ -119,7 +119,7 @@ class Player(multiprocessing.Process):
         if self.file_index < 0: #this happens when prev is pressed too many times
             self.file_index = 0
         f = os.path.join(self.folder_name, files[self.file_index])
-        logging.info("Audio file to be played: %s" % f)
+        logger.info("Audio file to be played: %s" % f)
         return f
 
     def get_files(self, folder_name):
@@ -147,7 +147,7 @@ class Player(multiprocessing.Process):
             dev = ao.AudioDevice('alsa', rate=mf.samplerate())
             iSave = 0
             why_stopped = ''
-            logging.info("Starting to play")
+            logger.info("Starting to play")
             self.msg_queue.put(PlayerMsg('started', self.isRadio))
             while True:
                 buf = mf.read()
@@ -194,14 +194,14 @@ class Player(multiprocessing.Process):
         elif self.entity_type == 'radio':
             msg = u"{radio} {desc}".format(radio = self.ui['entities']['radio'], desc = self.entity_desc)
         else:
-            logging.error("Invalid entity type: %s in player" % self.entity_type)
-        logging.info("Msg: %s" % msg)
+            logger.error("Invalid entity type: %s in player" % self.entity_type)
+        logger.info("Msg: %s" % msg)
         msg = u"(SayText \"{msg}\")".format(msg = msg)
         self.fest.sendall('(audio_mode \'sync)')
         data = self.fest.recv(1024)
         self.fest.sendall(msg.encode('iso-8859-2'))
         data = self.fest.recv(1024)
-        logging.info("Festival server replied %s" % data)
+        logger.info("Festival server replied %s" % data)
 
     def read_ui_segment(self, ui_root, segment, lang):
         segment_root = ui_root.find(segment)
@@ -217,5 +217,5 @@ class Player(multiprocessing.Process):
         self.read_ui_segment(ui, 'numbers', lang)
         self.read_ui_segment(ui, 'states', lang)
         self.read_ui_segment(ui, 'entities', lang)
-        logging.info('UI map read')
-        logging.debug(self.ui)
+        logger.info('UI map read')
+        logger.debug(self.ui)

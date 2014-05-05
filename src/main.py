@@ -98,12 +98,12 @@ class Dispatcher:
 
     def msg_player(self, msg):
         logging.info('Message to LED controller')
-        if msg == 'started':
+        if msg.value == 'started':
             if msg.is_radio:
                 self.pipes['led_control'].send(('play','radio'))
             else:
                 self.pipes['led_control'].send(('play','local'))
-        elif msg == 'stopped':
+        elif msg.value == 'stopped':
             self.state = State.stopped
             self.pipes['led_control'].send(('stop',0))
         return False
@@ -148,12 +148,12 @@ class Dispatcher:
 if __name__ == "__main__":
     os.chdir(os.path.dirname(__file__))
     logging.basicConfig(filename='../data/main.log', level=logging.INFO)
-    #fout = open('../data/stdout.log', 'a')
-    #ferr = open('../data/stderr.log', 'a')
-    #fout.write("---------------------------------------\n**** %s\n" % time.asctime())
-    #ferr.write("---------------------------------------\n**** %s\n" % time.asctime())
-    #sys.stdout = fout
-    #sys.stderr = ferr
+    fout = open('../data/stdout.log', 'a')
+    ferr = open('../data/stderr.log', 'a')
+    fout.write("---------------------------------------\n**** %s\n" % time.asctime())
+    ferr.write("---------------------------------------\n**** %s\n" % time.asctime())
+    sys.stdout = fout
+    sys.stderr = ferr
     print 'Starting'
     dispatcher = Dispatcher()
     dispatcher.start()
