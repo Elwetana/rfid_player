@@ -63,7 +63,7 @@ class RfidReader(multiprocessing.Process):
 
     def add_card(self, rfid):
         newkey = max(self.cards.values()) + 1
-        logger.info("Adding card rfid: %s, id: %s" % (rfid, newkey))
+        logger.warning("Adding card rfid: %s, id: %s" % (rfid, newkey))
         self.tree.getroot().append(ET.Element(tag='card', attrib={'rfid': rfid, 'key': "%s" % newkey}))
         self.tree.write(self.cardmap_file, encoding='UTF-8')
         self.cards[rfid] = newkey

@@ -9,7 +9,7 @@ from player import Player
 from volume import VolumeControl
 from led import LedControl
 from reader import RfidReader
-import os, time, sys
+import os, time, sys, copy
 import sqlite3
 
 class State:
@@ -69,7 +69,7 @@ class Dispatcher:
 
     def msg_rfid(self, msg):
         logging.info("RFID message received, value: %s" % msg.value)
-        if self.lastval != msg.value or self.state != State.playing:
+        if (self.lastval != msg.value) or (self.state != State.playing):
             if msg.value in self.items:
                 self.time = time.time()
                 self.state = State.playing
@@ -122,32 +122,63 @@ class Dispatcher:
         conn.execute('update lastpos set position = ?, fileindex = ? where foldername = ?', (seek_time, file_index, folder_name))
         conn.commit()
 
-    def add_item(self, path):
-        #todo -- read data folder, add new subfolders to list file
-        pass
-        #newkey = max(self.cards.values()) + 1
-        #print "Adding card rfid: %s, id: %s" % (rfid, newkey)
-        #self.tree.getroot().append(ET.Element(tag='card', attrib={'rfid': rfid, 'key': "%s" % newkey}))
-        #self.tree.write(self.cardmap_file, encoding='UTF-8')
-        #self.cards[rfid] = newkey
+    def add_item(self, path, item_id):
+        logging.warning("Adding path %s to items file" % path)
+        self.tree.getroot().append(ET.Element(tag='item', attrib={'id': "%s" % item_id, 'path': path, 'type': 'book', 'desc': path}))
+        self.tree.write(self.list_file, encoding='UTF-8')
+
+    def check_list(self, data_dir):
+        checklist = {}
+        for item_id in self.items:
+            if self.items[item_id]['type'] != 'radio':
+                checklist[self.items[item_id]['path']] = item_id
+        max_item_id = max(self.items.keys()) + 1
+        for d in os.listdir(data_dir):
+            dir_name = os.path.join(data_dir, d)
+            if os.path.isdir(dir_name):
+                files = os.listdir(dir_name)
+                mp3_found = False
+                for f in files:
+                    if os.path.isdir(os.path.join(dir_name, f)):
+                        logging.error("Item folder %s contains subdirectories." % d)
+                        break
+                    name, ext = os.path.splitext(f)
+                    if ext.lower() == '.mp3':
+                        mp3_found = True
+                        if dir_name in checklist:
+                            del checklist[dir_name]
+                            break
+                        else:
+                            self.add_item(d, max_item_id)
+                            max_item_id += 1
+                            break
+                if not mp3_found:
+                    logging.error("Subdirectory %s contains no mp3 files" % d)
+        for cl in checklist:
+            logging.error("Path %s present in item xml file, but not found on disk" % cl)
+        sys.exit(0)
 
     def read_list(self, list_file, data_dir):
         self.items = {}
+        self.list_file = list_file
         self.tree = ET.parse(list_file)
         itemmap = self.tree.getroot()
         for item in itemmap:
             item_id = int(item.attrib['id'])
-            del item.attrib['id']
-            self.items[item_id] = item.attrib
+            self.items[item_id] = copy.deepcopy(item.attrib)
+            del self.items[item_id]['id']
             if self.items[item_id]['type'] != 'radio':
                 self.items[item_id]['path'] = os.path.join(data_dir, self.items[item_id]['path'])
         logging.info('Items loaded')
         logging.debug(self.items)
+        self.check_list(data_dir)
 
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(__file__))
-    logging.basicConfig(filename='../data/main.log', level=logging.INFO)
+    logging.config.fileConfig('logging.conf')
+    logging.basicConfig(filename='../data/main.log', level=logging.WARNING)
+    logging.basicConfig(level=logging.INFO)
     fout = open('../data/stdout.log', 'a')
     ferr = open('../data/stderr.log', 'a')
     fout.write("---------------------------------------\n**** %s\n" % time.asctime())
@@ -157,3 +188,4 @@ if __name__ == "__main__":
     print 'Starting'
     dispatcher = Dispatcher()
     dispatcher.start()
+    os.system("sudo shutdown -h now")

@@ -161,6 +161,7 @@ class Player(multiprocessing.Process):
                 if not self.isRadio:
                     iSave += 1
                     if iSave == 100:
+                        self.seek_time = mf.current_time()
                         self.msg_queue.put(SavePosMsg((self.seek_time, self.file_index, self.folder_name)))
                         iSave = 0
             self.seek_time = mf.current_time()

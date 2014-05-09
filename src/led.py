@@ -26,8 +26,7 @@ class LedControl(multiprocessing.Process):
                 logger.info("led message received")
                 cmnd = self.pipe.recv()
                 if cmnd[0] == 'quit':
-                    self.play_on = True
-                    self.play_led()
+                    self.set_led_on_quit()
                     break
                 elif cmnd[0] == 'ack':
                     self.ack()
@@ -69,6 +68,12 @@ class LedControl(multiprocessing.Process):
             GPIO.output(self.pins['yellow2'], self.is_playing == 'radio')
             GPIO.output(self.pins['green2'], self.is_playing == 'local')
         self.play_on = not self.play_on
+
+    def set_led_on_quit(self):
+        GPIO.output(self.pins['yellow2'], False)
+        GPIO.output(self.pins['green2'], False)
+        GPIO.output(self.pins['red1'], True)
+
 
 if __name__ == "__main__":
     print "LedControl class"
