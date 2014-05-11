@@ -181,6 +181,8 @@ class Player(multiprocessing.Process):
         # for radio: "radio" <desc>
         msg = ""
         number = ""
+        if file_index < 0: #happens when prev message was received too many times. Should be probably fixed elsewhere
+            file_index = 0
         if file_index < 20:
             number = self.ui['numbers']["%s" % (file_index + 1)]
         elif file_index < 100:

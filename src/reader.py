@@ -42,7 +42,7 @@ class RfidReader(multiprocessing.Process):
                 self.ser.flushInput()
                 rfidData = self.ser.readline().strip()
                 if len(rfidData) > 0:
-                    rfidData = rfidData[1:-1]
+                    rfidData = self.clean_rfid(rfidData)
                     logger.info("Card Scanned: %s" % rfidData)
                     if rfidData in self.cards:
                         self.msg_queue.put(ReaderMsg(self.cards[rfidData]))
@@ -60,6 +60,15 @@ class RfidReader(multiprocessing.Process):
         finally:
             self.ser.close()
         logger.warning("RFID reader terminating")
+
+    def clean_rfid(self, data):
+        d = ""
+        for c in data[1:-1]:
+            if (c < '0') or (c > 'F'):
+                logger.error("Removed invalid character from rfid data")
+                continue
+            d += c
+        return d
 
     def add_card(self, rfid):
         newkey = max(self.cards.values()) + 1
@@ -80,3 +89,12 @@ class RfidReader(multiprocessing.Process):
 
 if __name__ == "__main__":
     print "RFID card reader class"
+    logging.basicConfig(level=logging.INFO)
+    msg_queue = multiprocessing.Queue()
+    to_worker, from_worker = multiprocessing.Pipe()
+    reader = RfidReader(from_worker, msg_queue)
+    reader.start()
+    while True:
+        msg = msg_queue.get()
+        print msg.value
+

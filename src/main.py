@@ -156,7 +156,6 @@ class Dispatcher:
                     logging.error("Subdirectory %s contains no mp3 files" % d)
         for cl in checklist:
             logging.error("Path %s present in item xml file, but not found on disk" % cl)
-        sys.exit(0)
 
     def read_list(self, list_file, data_dir):
         self.items = {}
@@ -176,7 +175,7 @@ class Dispatcher:
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(__file__))
-    logging.config.fileConfig('logging.conf')
+    #logging.config.fileConfig('logging.conf')
     logging.basicConfig(filename='../data/main.log', level=logging.WARNING)
     logging.basicConfig(level=logging.INFO)
     fout = open('../data/stdout.log', 'a')
