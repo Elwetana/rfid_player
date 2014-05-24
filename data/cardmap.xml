@@ -5,5 +5,5 @@
     <card desc="card 8672912" key="3" rfid="0C008456904E" />
     <card desc="red tag 2178706" key="4" rfid="1000213E929D" />
     <card desc="blue tag 2310402" key="5" rfid="0E002341026E" />
-    <card key="6" rfid="000000000000" />
+    <card key="0" rfid="000000000000" />
 </cardmap>

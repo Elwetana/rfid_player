@@ -4,6 +4,7 @@ import multiprocessing
 from multiprocessing.managers import BaseManager
 from message import Msg
 from evdev import InputDevice, categorize, ecodes, KeyEvent
+from select import select
 import xml.etree.ElementTree as ET
 import logging
 
@@ -18,26 +19,34 @@ class KeyMsg(Msg):
 
 class KeyListener(multiprocessing.Process):
 
-    def __init__(self, msg_queue, keymap_file = '../data/keymap.xml'):
+    def __init__(self, msg_queue, dev_names, keymap_file = '../data/keymap.xml'):
         multiprocessing.Process.__init__(self)
         self.msg_queue = msg_queue
         self.read_keymap(keymap_file)
+        devices = map(InputDevice, dev_names)
+        self.devices = {dev.fd: dev for dev in devices}
 
     def run(self):
-        dev = InputDevice('/dev/input/event0')
         logger.warning("Listener running")
-        for event in dev.read_loop():
-            if event.type == ecodes.EV_KEY:
-                logger.debug(categorize(event))
-                if event.type == ecodes.EV_KEY and event.value == 1: #event.value == 1 => this is key down
-                    code = event.code
-                    logger.info("Key code: %s" % code)
-                    if code in self.actions:
-                        logger.info("Adding message to queue: %s" % (self.actions[code],))
-                        self.msg_queue.put(KeyMsg(self.actions[code]))
-                        if self.actions[code] == 'quit':
-                            break
-        logger.warning("KeyListener terminating")
+        while True:
+            r,w,x = select(self.devices, [], [])
+            for fd in r:
+                for event in self.devices[fd].read():
+                    if (event.type != ecodes.EV_REL) and (event.type != ecodes.EV_SYN):
+                        logger.info(categorize(event))
+                    if event.type == ecodes.EV_KEY:
+                        if event.type == ecodes.EV_KEY and event.value == 1: #event.value == 1 => this is key down
+                            code = event.code
+                            logger.info("Key code: %s" % code)
+                            if code in self.actions:
+                                logger.info("Adding message to queue: %s" % (self.actions[code],))
+                                self.msg_queue.put(KeyMsg(self.actions[code]))
+                                if self.actions[code] == 'quit':
+                                    logger.warning("KeyListener terminating")
+                                    return
+                                if self.actions[code] == 'error':
+                                    logger.warning("Error in KeyListner, respawn")
+                                    return
 
     def read_keymap(self, keymap_file):
         self.actions = {}
@@ -50,3 +59,18 @@ class KeyListener(multiprocessing.Process):
 
 if __name__ == "__main__":
     print 'This is module for KeyListener class'
+    logging.basicConfig(level=logging.INFO)
+    msg_queue = multiprocessing.Queue()
+    keylistener = KeyListener(msg_queue, ['/dev/input/event0','/dev/input/event1'])
+    keylistener.start()
+    while True:
+        msg = msg_queue.get()
+        print msg.value
+        if msg.value == 'quit':
+            break
+        if msg.value == 'error':
+            keylistener.join()
+            keylistener = KeyListener(msg_queue, ['/dev/input/event0','/dev/input/event1'])
+            keylistener.start()
+    keylistener.join()
+

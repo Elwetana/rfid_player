@@ -39,19 +39,24 @@ class Player(multiprocessing.Process):
         while True:
             if self.pipe.poll(None):
                 cmnd = self.pipe.recv()
-                if cmnd[0] == 'play':
+                if cmnd[0] == 'start':
                     self.folder_name = cmnd[1]['path']
                     self.entity_type = cmnd[1]['type']
                     self.entity_desc = cmnd[1]['desc']
                     self.isRadio = (self.entity_type == 'radio')
                     self.set_seek_time()
                     self.play()
-                elif cmnd[0] == 'next':
+                elif cmnd[0] == 'stop':
+                    pass
+                elif cmnd[0] == 'play':
+                    if self.folder_name != '':
+                        self.play(False)
+                elif cmnd[0] == 'next_track':
                     if self.folder_name != '':
                         self.file_index += 1
                         self.seek_time = 0
                         self.play()
-                elif cmnd[0] == 'prev':
+                elif cmnd[0] == 'prev_track':
                     if self.folder_name != '':
                         if self.seek_time < 10000:
                             self.file_index -= 1
@@ -164,7 +169,8 @@ class Player(multiprocessing.Process):
                         self.seek_time = mf.current_time()
                         self.msg_queue.put(SavePosMsg((self.seek_time, self.file_index, self.folder_name)))
                         iSave = 0
-            self.seek_time = mf.current_time()
+            if not self.isRadio:
+                self.seek_time = mf.current_time()
             if why_stopped == 'finished':
                 self.seek_time = 0
                 self.file_index += 1
@@ -193,7 +199,7 @@ class Player(multiprocessing.Process):
                 msg_cont = u"{cont}.".format(cont = self.ui['states']['cont'])
             msg = u"{desc}. {index} {chapter}. {m}".format(desc = self.entity_desc, index = number, chapter = self.ui['entities']['chapter'], m = msg_cont)
         elif self.entity_type == 'music':
-            msg = u"{desc}. {index} {track}".format(desc = self.entity_desc, index = self.file_index + 1, trac = self.ui['entities']['track'])
+            msg = u"{desc}. {index} {track}".format(desc = self.entity_desc, index = number, track = self.ui['entities']['track'])
         elif self.entity_type == 'radio':
             msg = u"{radio} {desc}".format(radio = self.ui['entities']['radio'], desc = self.entity_desc)
         else:

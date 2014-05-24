@@ -1,12 +1,16 @@
 <?xml version="1.0"?>
 <keymap>
-    <map key="KEY_RIGHT" action="next" />
-    <map key="KEY_LEFT" action="prev" />
-    <map key="KEY_S" action="stop" />
-    <map key="KEY_SPACE" action="play" />
-    <map key="KEY_UP" action="vol_up" />
-    <map key="KEY_DOWN" action="vol_down" />
-    <map key="KEY_Q" action="quit" />
-    <map key="KEY_K" action="ff" />
-    <map key="KEY_J" action="bb" />
+    <map key="KEY_RIGHT" action="ff" />
+    <map key="KEY_LEFT" action="bb" />
+    <map key="KEY_ENTER" action="stop" />
+    <map key="BTN_LEFT" action="stop" />
+    <map key="KEY_HOMEPAGE" action="play" />
+    <map key="KEY_VOLUMEUP" action="vol_up" />
+    <map key="KEY_VOLUMEDOWN" action="vol_down" />
+    <map key="KEY_PAGEUP" action="next_item" />
+    <map key="KEY_PAGEDOWN" action="prev_item" />
+    <map key="KEY_WWW" action="next_track" />
+    <map key="KEY_PLAYPAUSE" action="prev_track" />
+    <map key="KEY_POWER" action="quit" />
+    <map key="KEY_REFRESH" action="error" />
 </keymap>

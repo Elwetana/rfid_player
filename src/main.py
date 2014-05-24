@@ -24,7 +24,7 @@ class Dispatcher:
         self.time = 0
         self.workers = {}
         self.pipes = {}
-        self.lastval = ''
+        self.lastval = -1
         self.actions = {
             'rfid': self.msg_rfid,
             'key': self.msg_keys,
@@ -32,21 +32,21 @@ class Dispatcher:
             'save_pos': self.msg_savepos
         }
 
-    def create_worker(self, worker_name, worker_class, needs_pipe, needs_queue):
+    def create_worker(self, worker_name, worker_class, needs_pipe, needs_queue, *args):
         if needs_pipe:
             to_worker, from_worker = multiprocessing.Pipe()
             if needs_queue:
-                self.workers[worker_name] = worker_class(from_worker, self.msg_queue)
+                self.workers[worker_name] = worker_class(from_worker, self.msg_queue, *args)
             else:
-                self.workers[worker_name] = worker_class(from_worker)
+                self.workers[worker_name] = worker_class(from_worker, *args)
             self.pipes[worker_name] = to_worker
         else:
-            self.workers[worker_name] = worker_class(self.msg_queue)
+            self.workers[worker_name] = worker_class(self.msg_queue, *args)
         self.workers[worker_name].start()
 
     def start(self):
         self.msg_queue = multiprocessing.Queue()
-        self.create_worker('key_listener', KeyListener, False, True)
+        self.create_worker('key_listener', KeyListener, False, True, ['/dev/input/event0','/dev/input/event1'])
         self.create_worker('led_control', LedControl, True, False)
         self.create_worker('volume_control', VolumeControl, True, False)
         self.create_worker('player', Player, True, True)
@@ -71,27 +71,34 @@ class Dispatcher:
         logging.info("RFID message received, value: %s" % msg.value)
         if (self.lastval != msg.value) or (self.state != State.playing):
             if msg.value in self.items:
-                self.time = time.time()
-                self.state = State.playing
-                self.pipes['player'].send(('play',self.items[msg.value]))
-                self.lastval = msg.value
+                self.play_item(msg.value)
             else:
                 logging.error("RFID value not present in list of items")
         else:
             logging.info("Ignoring accidental scan")
         return False
 
+    def play_item(self, item_id):
+        self.time = time.time()
+        self.state = State.playing
+        self.pipes['player'].send(('start',self.items[item_id]))
+        self.lastval = item_id
+
     def msg_keys(self, msg):
         if msg.value == 'quit':
             return True
-        to_player = ['next', 'prev', 'stop', 'play', 'ff', 'bb']
+        to_player = ['next_track', 'prev_track', 'stop', 'play', 'ff', 'bb']
         to_volume = {'vol_up': ('up', 5), 'vol_down': ('down', 5)}
+        to_self   = {'error': (self.handle_error, 0), 'next_item': (self.change_item, 1), 'prev_item': (self.change_item, -1)}
         if msg.value in to_player:
             logging.info('Message %s receieved, sending to player' % msg.value)
             self.pipes['player'].send((msg.value,0))
         elif msg.value in to_volume:
             logging.info('Message %s receieved, sending to volume control' % msg.value)
             self.pipes['volume_control'].send(to_volume[msg.value])
+        elif msg.value in to_self:
+            logging.info('Message %s receieved, sending to self' % msg.value)
+            to_self[msg.value][0](to_self[msg.value][1])
         else:
             logging.error('Unknown message from keyboard')
         return False
@@ -115,6 +122,24 @@ class Dispatcher:
     def msg_unknown(self, msg):
         logging.info("Unknown message: %s" % msg)
         return False
+
+    def change_item(self, direction):
+        all_items = self.items.keys()
+        if self.lastval in all_items:
+            new_item_pos = all_items.index(self.lastval) + direction
+        else:
+            new_item_pos = 0
+        if new_item_pos < 0:
+            new_item_pos = len(all_items) - 1
+        if new_item_pos == len(all_items):
+            new_item_pos = 0
+        self.play_item(all_items[new_item_pos])
+
+    #this is to handle a special error thrown by the keyboard device
+    def handle_error(self, _x):
+         self.workers['key_listener'].join()
+         self.workers['key_listener'] = KeyListener(self.msg_queue, ['/dev/input/event0','/dev/input/event1'])
+         self.workers['key_listener'].start()
 
     def save_pos(self, seek_time, file_index, folder_name):
         logging.debug("Saving position")
@@ -156,6 +181,7 @@ class Dispatcher:
                     logging.error("Subdirectory %s contains no mp3 files" % d)
         for cl in checklist:
             logging.error("Path %s present in item xml file, but not found on disk" % cl)
+            del self.items[checklist[cl]]
 
     def read_list(self, list_file, data_dir):
         self.items = {}
@@ -163,6 +189,8 @@ class Dispatcher:
         self.tree = ET.parse(list_file)
         itemmap = self.tree.getroot()
         for item in itemmap:
+            if False in [x for x in ['id', 'desc', 'type', 'path'] if (x in item)]:
+                logging.error("Item does not have one of the required attributes")
             item_id = int(item.attrib['id'])
             self.items[item_id] = copy.deepcopy(item.attrib)
             del self.items[item_id]['id']
@@ -175,15 +203,15 @@ class Dispatcher:
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(__file__))
-    #logging.config.fileConfig('logging.conf')
+    ##logging.config.fileConfig('logging.conf')
     logging.basicConfig(filename='../data/main.log', level=logging.WARNING)
-    logging.basicConfig(level=logging.INFO)
+    #logging.basicConfig(level=logging.INFO)
     fout = open('../data/stdout.log', 'a')
     ferr = open('../data/stderr.log', 'a')
     fout.write("---------------------------------------\n**** %s\n" % time.asctime())
     ferr.write("---------------------------------------\n**** %s\n" % time.asctime())
-    sys.stdout = fout
-    sys.stderr = ferr
+    #sys.stdout = fout
+    #sys.stderr = ferr
     print 'Starting'
     dispatcher = Dispatcher()
     dispatcher.start()
