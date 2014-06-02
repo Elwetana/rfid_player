@@ -1,9 +1,14 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <cardmap>
+    <card key="0" rfid="000000000000" />
     <card desc="card 2847244" key="1" rfid="0D002B720C58" />
     <card desc="yellow tag 1429508" key="2" rfid="0E0015D004CF" />
     <card desc="card 8672912" key="3" rfid="0C008456904E" />
     <card desc="red tag 2178706" key="4" rfid="1000213E929D" />
     <card desc="blue tag 2310402" key="5" rfid="0E002341026E" />
-    <card key="0" rfid="000000000000" />
+    <card desc="card 3042766" key="6" rfid="0D002E6DCE80" />
+    <card desc="card 3044075" key="7" rfid="0D002E72EBBA" />
+    <card desc="yellow tag 5052551" key="8" rfid="0E004D1887DC" />
+    <card desc="red tag 5733632" key="9" rfid="1000577D003A" />
+    <card desc="blue tag 9342619" key="10" rfid="0E008E8E9B95" />
 </cardmap>
