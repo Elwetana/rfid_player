@@ -189,8 +189,9 @@ class Dispatcher:
         self.tree = ET.parse(list_file)
         itemmap = self.tree.getroot()
         for item in itemmap:
-            if False in [x for x in ['id', 'desc', 'type', 'path'] if (x in item)]:
+            if False in [x in item.attrib for x in ['id', 'desc', 'type', 'path']] :
                 logging.error("Item does not have one of the required attributes")
+                continue
             item_id = int(item.attrib['id'])
             self.items[item_id] = copy.deepcopy(item.attrib)
             del self.items[item_id]['id']
@@ -210,8 +211,8 @@ if __name__ == "__main__":
     ferr = open('../data/stderr.log', 'a')
     fout.write("---------------------------------------\n**** %s\n" % time.asctime())
     ferr.write("---------------------------------------\n**** %s\n" % time.asctime())
-    #sys.stdout = fout
-    #sys.stderr = ferr
+    sys.stdout = fout
+    sys.stderr = ferr
     print 'Starting'
     dispatcher = Dispatcher()
     dispatcher.start()
