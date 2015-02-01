@@ -179,6 +179,10 @@ class Player(multiprocessing.Process):
                 conn = sqlite3.connect('player.db')
                 conn.execute('update lastpos set position = ?, fileindex = ? where foldername = ?', (self.seek_time, self.file_index % len(files), self.folder_name))
                 conn.commit()
+                #if we finished the last track, we shall mark it as complete (this is purely statistical, is not used by the program)
+                if (self.seek_time == 0) and (self.file_index == len(files)):
+                    conn.execute('update lastpos set completed = completed + 1 where foldername = ?', (self.folder_name, ))
+                    conn.commit()
 
     def speak(self, seek_time, file_index):
         # Message:
@@ -192,7 +196,12 @@ class Player(multiprocessing.Process):
         if file_index < 20:
             number = self.ui['numbers']["%s" % (file_index + 1)]
         elif file_index < 100:
-            number = u"{tens} {ones}".format(tens = self.ui['numbers']["%s" % ((file_index + 1)// 10) * 10], ones = self.ui['numbers']["%s" % ((file_index + 1) % 10)])
+            tens_index = ((file_index + 1) // 10) * 10 
+            ones_index = ((file_index + 1) % 10)
+            if ones_index == 0:
+                number = u"{tens}".format(tens = self.ui['numbers']["%s" % tens_index])
+            else:
+                number = u"{tens} {ones}".format(tens = self.ui['numbers']["%s" % tens_index], ones = self.ui['numbers']["%s" % ones_index])
         if self.entity_type == 'book':
             msg_cont = u"{play} {start}.".format(play = self.ui['states']['play'], start = self.ui['states']['start'])
             if seek_time > 0:

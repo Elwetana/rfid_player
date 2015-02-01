@@ -9,6 +9,7 @@ from player import Player
 from volume import VolumeControl
 from led import LedControl
 from reader import RfidReader
+from http_server import HttpServer
 import os, time, sys, copy
 import sqlite3
 
@@ -19,7 +20,9 @@ class State:
 class Dispatcher:
 
     def __init__(self, list_file = '../data/list.xml', data_dir = '../data/'):
-        self.read_list(list_file, data_dir)
+        self.list_file = list_file
+        self.data_dir = data_dir
+        self.read_list()
         self.state = State.stopped
         self.time = 0
         self.workers = {}
@@ -29,7 +32,8 @@ class Dispatcher:
             'rfid': self.msg_rfid,
             'key': self.msg_keys,
             'player': self.msg_player,
-            'save_pos': self.msg_savepos
+            'save_pos': self.msg_savepos,
+            'http': self.msg_http
         }
 
     def create_worker(self, worker_name, worker_class, needs_pipe, needs_queue, *args):
@@ -51,6 +55,7 @@ class Dispatcher:
         self.create_worker('volume_control', VolumeControl, True, False)
         self.create_worker('player', Player, True, True)
         self.create_worker('rfid_reader', RfidReader, True, True)
+        self.create_worker('http_server', HttpServer, True, True)
 
         while True:
             msg = self.msg_queue.get()
@@ -58,6 +63,7 @@ class Dispatcher:
             if msg.needs_ack:
                 self.pipes['led_control'].send(('ack',0))
             if self.actions.get(msg.msg_type, self.msg_unknown)(msg):
+                logging.warning("Terminate message received")
                 break
         self.workers['key_listener'].join()
         for worker in self.workers:
@@ -119,6 +125,19 @@ class Dispatcher:
         self.save_pos(*msg.value)
         return False
 
+    def msg_http(self, msg):
+        logging.debug("Http message with value %s processing" % msg.value)
+        if msg.value == 'terminate':
+            logging.info("Program terminated by HTTP request")
+            return True
+        if msg.value == 'reload_items':
+            logging.info("Reloading the item list")
+            self.read_list()
+        if msg.value == 'reread_cards':
+            logging.info("Rereading cards")
+            self.pipes['rfid_reader'].send(('reread',0))
+        return False
+
     def msg_unknown(self, msg):
         logging.info("Unknown message: %s" % msg)
         return False
@@ -152,14 +171,14 @@ class Dispatcher:
         self.tree.getroot().append(ET.Element(tag='item', attrib={'id': "%s" % item_id, 'path': path, 'type': 'book', 'desc': path}))
         self.tree.write(self.list_file, encoding='UTF-8')
 
-    def check_list(self, data_dir):
+    def check_list(self):
         checklist = {}
         for item_id in self.items:
             if self.items[item_id]['type'] != 'radio':
                 checklist[self.items[item_id]['path']] = item_id
         max_item_id = max(self.items.keys()) + 1
-        for d in os.listdir(data_dir):
-            dir_name = os.path.join(data_dir, d)
+        for d in os.listdir(self.data_dir):
+            dir_name = os.path.join(self.data_dir, d)
             if os.path.isdir(dir_name):
                 files = os.listdir(dir_name)
                 mp3_found = False
@@ -183,10 +202,9 @@ class Dispatcher:
             logging.error("Path %s present in item xml file, but not found on disk" % cl)
             del self.items[checklist[cl]]
 
-    def read_list(self, list_file, data_dir):
+    def read_list(self):
         self.items = {}
-        self.list_file = list_file
-        self.tree = ET.parse(list_file)
+        self.tree = ET.parse(self.list_file)
         itemmap = self.tree.getroot()
         for item in itemmap:
             if False in [x in item.attrib for x in ['id', 'desc', 'type', 'path']] :
@@ -196,10 +214,10 @@ class Dispatcher:
             self.items[item_id] = copy.deepcopy(item.attrib)
             del self.items[item_id]['id']
             if self.items[item_id]['type'] != 'radio':
-                self.items[item_id]['path'] = os.path.join(data_dir, self.items[item_id]['path'])
+                self.items[item_id]['path'] = os.path.join(self.data_dir, self.items[item_id]['path'])
         logging.info('Items loaded')
         logging.debug(self.items)
-        self.check_list(data_dir)
+        self.check_list()
 
 
 if __name__ == "__main__":

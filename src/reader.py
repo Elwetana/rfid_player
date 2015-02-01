@@ -25,7 +25,8 @@ class RfidReader(multiprocessing.Process):
         multiprocessing.Process.__init__(self)
         self.pipe = pipe
         self.msg_queue = msg_queue
-        self.read_cards(cardmap_file)
+        self.cardmap_file = cardmap_file
+        self.read_cards()
 
     def run(self):
         self.ser = serial.Serial()
@@ -51,6 +52,8 @@ class RfidReader(multiprocessing.Process):
                         self.add_card(rfidData)
                 if self.pipe.poll():
                     cmnd = self.pipe.recv()
+                    if cmnd[0] == 'reread':
+                        self.read_cards()
                     if cmnd[0] == 'quit':
                         break
         except:
@@ -71,16 +74,16 @@ class RfidReader(multiprocessing.Process):
         return d
 
     def add_card(self, rfid):
+        self.read_cards()
         newkey = max(self.cards.values()) + 1
         logger.warning("Adding card rfid: %s, id: %s" % (rfid, newkey))
         self.tree.getroot().append(ET.Element(tag='card', attrib={'rfid': rfid, 'key': "%s" % newkey}))
         self.tree.write(self.cardmap_file, encoding='UTF-8')
         self.cards[rfid] = newkey
 
-    def read_cards(self, cardmap_file):
+    def read_cards(self):
         self.cards = {}
-        self.cardmap_file = cardmap_file
-        self.tree = ET.parse(cardmap_file)
+        self.tree = ET.parse(self.cardmap_file)
         cardmap = self.tree.getroot()
         for card in cardmap:
             self.cards[card.attrib['rfid']] = int(card.attrib['key'])
