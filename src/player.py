@@ -93,7 +93,7 @@ class Player(multiprocessing.Process):
         if row is None:
             logger.warning('creating record for %s in lastpos database' % self.folder_name)
             with conn:
-                conn.execute('insert into lastpos (foldername, fileindex, position) values (?, ?, ?)', (self.folder_name, 0, 0))
+                conn.execute('insert into lastpos (foldername, fileindex, position, completed) values (?, ?, ?, ?)', (self.folder_name, 0, 0, 0))
         else:
             file_index = row[1]
             seek_time = row[2]

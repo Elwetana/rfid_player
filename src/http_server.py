@@ -5,6 +5,8 @@ import multiprocessing
 import SocketServer
 import BaseHTTPServer
 import logging
+import sqlite3
+import os
 from message import Msg
 
 logger = logging.getLogger("root.reader")
@@ -33,9 +35,26 @@ class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             self.server.msg_queue.put(HttpMsg(HttpHandler.msgMap[self.path]))
         self.path = '/index.html'
         f = open(HttpHandler.configRoot + self.path)
-        self.wfile.write(f.read())
+        html = f.read()
         f.close()
+        #replace the 'template tag' {LastposTable} with table data
+        html = html.replace('{LastposTable}', self.getLastposTable())
+        self.wfile.write(html)
 
+    def getLastposTable(self):
+        html = ''
+        html += '<table>\n'
+        html += '<tr><th>Folder</th><th>File Index</th><th>Position</th><th>Completed</th><th>File Count</th></tr>\n'
+        conn = sqlite3.connect(os.path.join(self.configRoot, '../src/player.db'))
+        rows = conn.execute('select foldername, fileindex, position, completed from lastpos;')
+        for row in rows.fetchall():
+            try:
+                files = os.listdir(os.path.join(self.configRoot, row[0]))
+            except OSError: #this happens when the book was deleted
+                continue
+            html += '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n' % (row[0][7:], row[1], row[2], row[3], len(files))
+        html += '</table>\n'
+        return html
 
 class HttpServer(multiprocessing.Process):
 

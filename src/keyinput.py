@@ -17,6 +17,15 @@ class KeyMsg(Msg):
         self.value = action
         self.needs_ack = True
 
+"""
+The problem here is that the devices[fd].read() call does not timeout, so the loop in run() method will never terminate,
+unless an event is passed to it -- therefore it's not possible to join this process if the main program wants to terminate
+for other reasons.
+
+There are two solutions I can see: inserting an event in the device to terminate the loop or rewriting this class
+so that it works with asyncore loop() (see http://python-evdev.readthedocs.org/en/latest/tutorial.html#reading-events-with-asyncore)
+The latter approach seems better to me.
+"""
 class KeyListener(multiprocessing.Process):
 
     def __init__(self, msg_queue, dev_names, keymap_file = '../data/keymap.xml'):

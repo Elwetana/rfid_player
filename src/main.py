@@ -65,7 +65,7 @@ class Dispatcher:
             if self.actions.get(msg.msg_type, self.msg_unknown)(msg):
                 logging.warning("Terminate message received")
                 break
-        self.workers['key_listener'].join()
+        self.workers['key_listener'].join() #tohle nefunguje, kdyz terminate msg. prijde ze serveru, protoze key_listener porad ceka
         for worker in self.workers:
             if worker != 'key_listener':
                 logging.warning('Trying to terminate the %s' % worker)
