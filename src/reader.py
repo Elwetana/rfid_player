@@ -17,7 +17,7 @@ class ReaderMsg(Msg):
 
 class RfidReader(multiprocessing.Process):
 
-    rfidPort = "/dev/ttyAMA0"
+    rfidPort = "/dev/serial0"
     baudrate = 9600
     timeout = 0.1
 
@@ -39,11 +39,24 @@ class RfidReader(multiprocessing.Process):
             logger.warning("Open: " + self.ser.portstr)
         logger.warning("RFID reader reading")
         try:
+            self.ser.flushInput()
+            start_flag = "\x02"
+            end_flag = "\x03"
             while True:
-                self.ser.flushInput()
-                rfidData = self.ser.readline().strip()
-                if len(rfidData) > 0:
-                    rfidData = self.clean_rfid(rfidData)
+                c = self.ser.read()
+                if c == start_flag:
+                    c = ''
+                    rfidData = ''
+                    counter = 0
+                    while c != end_flag and c != start_flag and counter < 13:
+                        c = self.ser.read()
+                        rfidData += str(c)
+                        counter += 1
+                    if counter != 13:
+                        continue
+                    rfidData = rfidData.replace(end_flag, '')
+                    if not(self.verify_checksum(rfidData)):
+                        continue;
                     logger.info("Card Scanned: %s" % rfidData)
                     if rfidData in self.cards:
                         self.msg_queue.put(ReaderMsg(self.cards[rfidData]))
@@ -73,6 +86,17 @@ class RfidReader(multiprocessing.Process):
             d += c
         return d
 
+    def verify_checksum(self, rfid):
+        if len(rfid) != 12:
+            return False
+        checksum = 0
+        for i in range(0, 9, 2):
+            checksum = checksum ^ (((int(rfid[i], 16)) << 4) + int(rfid[i + 1], 16))
+        return checksum == (int(rfid[10], 16) << 4) + int(rfid[11], 16)
+
+    def get_card_id(self, rfid):
+        return int(rfid[4:10], 16)
+
     def add_card(self, rfid):
         self.read_cards()
         newkey = max(self.cards.values()) + 1
@@ -90,12 +114,21 @@ class RfidReader(multiprocessing.Process):
         logger.info('Card map loaded')
         logger.debug(self.cards)
 
+    def check_cards(self):
+        for card in self.cards:
+            is_valid = self.verify_checksum(card)
+            name = "invalid"
+            if is_valid:
+                name = self.get_card_id(card)
+            print self.cards[card], name, is_valid
+
 if __name__ == "__main__":
     print "RFID card reader class"
     logging.basicConfig(level=logging.INFO)
     msg_queue = multiprocessing.Queue()
     to_worker, from_worker = multiprocessing.Pipe()
     reader = RfidReader(from_worker, msg_queue)
+    reader.check_cards()
     reader.start()
     while True:
         msg = msg_queue.get()

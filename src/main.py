@@ -176,7 +176,9 @@ class Dispatcher:
         for item_id in self.items:
             if self.items[item_id]['type'] != 'radio':
                 checklist[self.items[item_id]['path']] = item_id
-        max_item_id = max(self.items.keys()) + 1
+        max_item_id = 0
+        if len(self.items) > 0:
+            max_item_id = max(self.items.keys()) + 1
         for d in os.listdir(self.data_dir):
             dir_name = os.path.join(self.data_dir, d)
             if os.path.isdir(dir_name):

@@ -3,7 +3,7 @@
 import multiprocessing
 from multiprocessing.managers import BaseManager
 from message import Msg
-from evdev import InputDevice, categorize, ecodes, KeyEvent
+from evdev import InputDevice, categorize, ecodes, KeyEvent, list_devices
 from select import select
 import xml.etree.ElementTree as ET
 import logging
@@ -32,7 +32,9 @@ class KeyListener(multiprocessing.Process):
         multiprocessing.Process.__init__(self)
         self.msg_queue = msg_queue
         self.read_keymap(keymap_file)
-        devices = map(InputDevice, dev_names)
+	available_devices = list_devices()
+	devices_to_use = [d for d in dev_names if d in available_devices]
+        devices = map(InputDevice, devices_to_use)
         self.devices = {dev.fd: dev for dev in devices}
 
     def run(self):
