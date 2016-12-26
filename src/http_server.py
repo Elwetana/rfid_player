@@ -9,6 +9,9 @@ import sqlite3
 import os
 from message import Msg
 
+import WebSocketServer
+
+
 logger = logging.getLogger("root.reader")
 
 class HttpMsg(Msg):
@@ -84,12 +87,32 @@ class HttpServer(multiprocessing.Process):
 
         logger.warning("HTTP server terminating")
 
+class SimpleEcho(WebSocketServer.WebSocket):
+
+    def handleMessage(self):
+        # echo message back to client
+        print "*",
+        self.sendMessage(self.data)
+        self.server.msg_queue.put(HttpMsg(self.data))
+
+    def handleConnected(self):
+        print self.address, 'connected'
+
+    def handleClose(self):
+        print self.address, 'closed'
+
+    def broadcast(self, message):
+        self.sendMessage(message)
+
+
+
 if __name__ == "__main__":
     print "HTTP server class"
     logging.basicConfig(level=logging.INFO)
     msg_queue = multiprocessing.Queue()
     to_worker, from_worker = multiprocessing.Pipe()
-    server = HttpServer(from_worker, msg_queue)
+    server = WebSocketServer.SimpleWebSocketServer('192.168.88.181', 8000, SimpleEcho, from_worker, msg_queue)
+    # server = HttpServer(from_worker, msg_queue)
     server.start()
     while True:
         msg = msg_queue.get()
