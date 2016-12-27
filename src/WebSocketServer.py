@@ -1,13 +1,16 @@
-'''
+#!/usr/bin/python
+"""
 The MIT License (MIT)
 Copyright (c) 2013 Dave P.
-'''
+"""
 import sys
 
 import SocketServer
 from BaseHTTPServer import BaseHTTPRequestHandler
 from StringIO import StringIO
 import multiprocessing
+
+from message import HttpMsg
 
 import hashlib
 import base64
@@ -569,9 +572,6 @@ class SimpleWebSocketServer(multiprocessing.Process):
         self.connections = {}
         self.listeners = [self.serversocket]
 
-    def run(self):
-        pass
-
     def _decorateSocket(self, sock):
         return sock
 
@@ -585,14 +585,17 @@ class SimpleWebSocketServer(multiprocessing.Process):
             conn.close()
             conn.handleClose()
 
-    def serveforever(self):
+    def run(self):
         while True:
             if self.pipe.poll():
                 cmnd = self.pipe.recv()
                 if cmnd[0] == 'quit':
                     break
                 if cmnd[0] == 'broadcast':
-                    pass
+                    for fileno in self.connections:
+                        message = unicode(cmnd[1])
+                        print 'Broadcast request for', message, type(message)
+                        self.connections[fileno].broadcast(message)
 
             writers = []
             for fileno in self.listeners:
@@ -662,3 +665,5 @@ class SimpleWebSocketServer(multiprocessing.Process):
                     client.handleClose()
                     del self.connections[failed]
                     self.listeners.remove(failed)
+
+

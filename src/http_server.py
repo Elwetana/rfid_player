@@ -7,19 +7,12 @@ import BaseHTTPServer
 import logging
 import sqlite3
 import os
-from message import Msg
+from message import HttpMsg
 
 import WebSocketServer
 
 
 logger = logging.getLogger("root.reader")
-
-class HttpMsg(Msg):
-
-    def __init__(self, http_data):
-        self.msg_type = 'http'
-        self.value = http_data
-        self.needs_ack = True
 
 class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
@@ -29,7 +22,7 @@ class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             '/reload' : 'reload_items',
             '/reread' : 'reread_cards'
             }
-    
+
     def do_GET(self):
         self.send_response(200)
         self.send_header('Content-Type', 'text/html')
@@ -90,9 +83,7 @@ class HttpServer(multiprocessing.Process):
 class SimpleEcho(WebSocketServer.WebSocket):
 
     def handleMessage(self):
-        # echo message back to client
-        print "*",
-        self.sendMessage(self.data)
+        print "Socket is handling messsage"
         self.server.msg_queue.put(HttpMsg(self.data))
 
     def handleConnected(self):
@@ -102,8 +93,8 @@ class SimpleEcho(WebSocketServer.WebSocket):
         print self.address, 'closed'
 
     def broadcast(self, message):
+        print "Socket is broadcasting message"
         self.sendMessage(message)
-
 
 
 if __name__ == "__main__":
@@ -111,10 +102,16 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     msg_queue = multiprocessing.Queue()
     to_worker, from_worker = multiprocessing.Pipe()
-    server = WebSocketServer.SimpleWebSocketServer('192.168.88.181', 8000, SimpleEcho, from_worker, msg_queue)
+    server = WebSocketServer.SimpleWebSocketServer('192.168.88.59', 8000, SimpleEcho, from_worker, msg_queue)
     # server = HttpServer(from_worker, msg_queue)
     server.start()
     while True:
-        msg = msg_queue.get()
-        print msg.value
+        try:
+            print "getting message"
+            msg = msg_queue.get_nowait()
+            print "Received message from server:", msg.value
+        except:
+            pass
+        data = raw_input('-->')
+        to_worker.send(('broadcast', data))
 
