@@ -1,16 +1,18 @@
 #!/usr/bin/python
 """
+Based on the work of Dave Pallot
+https://github.com/dpallot/simple-websocket-server
+
 The MIT License (MIT)
 Copyright (c) 2013 Dave P.
-"""
-import sys
 
-import SocketServer
+"""
+
 from BaseHTTPServer import BaseHTTPRequestHandler
 from StringIO import StringIO
 import multiprocessing
-
-from message import HttpMsg
+import logging
+from message import WebsocketMsg
 
 import hashlib
 import base64
@@ -21,9 +23,8 @@ import codecs
 from collections import deque
 from select import select
 
-__all__ = ['WebSocket',
-           'SimpleWebSocketServer',
-           'SimpleSSLWebSocketServer']
+
+logger = logging.getLogger("root.reader")
 
 
 def _check_unicode(val):
@@ -557,16 +558,19 @@ class WebSocket(object):
                 self.index += 1
 
 
-class SimpleWebSocketServer(multiprocessing.Process):
-    def __init__(self, host, port, websocketclass, pipe, msg_queue, selectInterval=0.1):
+class WebSocketServer(multiprocessing.Process):
+    ip_address = '192.168.88.59'
+    port = 8000
+
+    def __init__(self, pipe, msg_queue, selectInterval=0.1):
         multiprocessing.Process.__init__(self)
         self.pipe = pipe
         self.msg_queue = msg_queue
 
-        self.websocketclass = websocketclass
+        self.websocketclass = MessageBroker
         self.serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.serversocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.serversocket.bind((host, port))
+        self.serversocket.bind((WebSocketServer.ip_address, WebSocketServer.port))
         self.serversocket.listen(5)
         self.selectInterval = selectInterval
         self.connections = {}
@@ -666,4 +670,37 @@ class SimpleWebSocketServer(multiprocessing.Process):
                     del self.connections[failed]
                     self.listeners.remove(failed)
 
+class MessageBroker(WebSocket):
+
+    def handleMessage(self):
+        logging.debug("socket is handling message")
+        self.server.msg_queue.put(WebsocketMsg(self.data))
+
+    def handleConnected(self):
+        logging.debug("connected from %s" % self.address)
+
+    def handleClose(self):
+        logging.debug("connection from %s closed" % self.address)
+
+    def broadcast(self, message):
+        logging.debug("broadcasting message")
+        self.sendMessage(message)
+
+
+if __name__ == "__main__":
+    print "WebSocketServer class"
+    logging.basicConfig(level=logging.INFO)
+    msg_queue = multiprocessing.Queue()
+    to_worker, from_worker = multiprocessing.Pipe()
+    server = WebSocketServer(from_worker, msg_queue)
+    server.start()
+    while True:
+        try:
+            print "getting message"
+            msg = msg_queue.get_nowait()
+            print "Received message from server:", msg.value
+        except:
+            pass
+        data = raw_input('-->')
+        to_worker.send(('broadcast', data))
 

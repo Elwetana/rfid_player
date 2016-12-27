@@ -2,25 +2,22 @@
 
 import sys
 import multiprocessing
-import SocketServer
 import BaseHTTPServer
 import logging
 import sqlite3
 import os
 from message import HttpMsg
 
-import WebSocketServer
-
-
 logger = logging.getLogger("root.reader")
+
 
 class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     configRoot = '/opt/rp_play/http'
     msgMap = {
-            '/terminate' : 'terminate',
-            '/reload' : 'reload_items',
-            '/reread' : 'reread_cards'
+            '/terminate': 'terminate',
+            '/reload':    'reload_items',
+            '/reread':    'reread_cards'
             }
 
     def do_GET(self):
@@ -33,7 +30,7 @@ class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         f = open(HttpHandler.configRoot + self.path)
         html = f.read()
         f.close()
-        #replace the 'template tag' {LastposTable} with table data
+        # replace the 'template tag' {LastposTable} with table data
         html = html.replace('{LastposTable}', self.getLastposTable())
         self.wfile.write(html)
 
@@ -46,11 +43,13 @@ class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         for row in rows.fetchall():
             try:
                 files = os.listdir(os.path.join(self.configRoot, row[0]))
-            except OSError: #this happens when the book was deleted
+            except OSError:  # this happens when the book was deleted
                 continue
-            html += '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n' % (row[0][7:], row[1], row[2], row[3], len(files))
+            html += '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n' % \
+                    (row[0][7:], row[1], row[2], row[3], len(files))
         html += '</table>\n'
         return html
+
 
 class HttpServer(multiprocessing.Process):
 
@@ -61,9 +60,10 @@ class HttpServer(multiprocessing.Process):
         multiprocessing.Process.__init__(self)
         self.pipe = pipe
         self.msg_queue = msg_queue
+        self.server = None
 
     def run(self):
-        self.server = BaseHTTPServer.HTTPServer(('',HttpServer.serverPort), HttpHandler)
+        self.server = BaseHTTPServer.HTTPServer(('', HttpServer.serverPort), HttpHandler)
         self.server.timeout = HttpServer.timeout
         self.server.msg_queue = self.msg_queue
 
@@ -75,43 +75,18 @@ class HttpServer(multiprocessing.Process):
                     if cmnd[0] == 'quit':
                         break
         except:
-            #logger.error("error: %s" % sys.exc_info())
             print sys.exc_info()
 
         logger.warning("HTTP server terminating")
-
-class SimpleEcho(WebSocketServer.WebSocket):
-
-    def handleMessage(self):
-        print "Socket is handling messsage"
-        self.server.msg_queue.put(HttpMsg(self.data))
-
-    def handleConnected(self):
-        print self.address, 'connected'
-
-    def handleClose(self):
-        print self.address, 'closed'
-
-    def broadcast(self, message):
-        print "Socket is broadcasting message"
-        self.sendMessage(message)
-
 
 if __name__ == "__main__":
     print "HTTP server class"
     logging.basicConfig(level=logging.INFO)
     msg_queue = multiprocessing.Queue()
     to_worker, from_worker = multiprocessing.Pipe()
-    server = WebSocketServer.SimpleWebSocketServer('192.168.88.59', 8000, SimpleEcho, from_worker, msg_queue)
-    # server = HttpServer(from_worker, msg_queue)
+    server = HttpServer(from_worker, msg_queue)
     server.start()
     while True:
-        try:
-            print "getting message"
-            msg = msg_queue.get_nowait()
-            print "Received message from server:", msg.value
-        except:
-            pass
-        data = raw_input('-->')
-        to_worker.send(('broadcast', data))
+        msg = msg_queue.get()
+        print "Received message from server:", msg.value
 

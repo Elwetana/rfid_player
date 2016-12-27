@@ -10,8 +10,10 @@ from volume import VolumeControl
 from led import LedControl
 from reader import RfidReader
 from http_server import HttpServer
+from ws_server import WebSocketServer
 import os, time, sys, copy
 import sqlite3
+import json
 
 class State:
     playing = 1
@@ -19,10 +21,13 @@ class State:
 
 class Dispatcher:
 
-    def __init__(self, list_file = '../data/list.xml', data_dir = '../data/'):
+    def __init__(self, list_file = 'list.xml', local_dir = '../data/', remote_dir = '/mnt/z/Audio/_audio_books/_pi'):
         self.list_file = list_file
-        self.data_dir = data_dir
-        self.read_list()
+        self.local_dir = local_dir
+        self.remote_dir = remote_dir
+        self.tree = {}
+        self.items = {}
+        self.init_list()
         self.state = State.stopped
         self.time = 0
         self.workers = {}
@@ -33,7 +38,8 @@ class Dispatcher:
             'key': self.msg_keys,
             'player': self.msg_player,
             'save_pos': self.msg_savepos,
-            'http': self.msg_http
+            'http': self.msg_http,
+            'ws': self.msg_ws
         }
 
     def create_worker(self, worker_name, worker_class, needs_pipe, needs_queue, *args):
@@ -56,6 +62,7 @@ class Dispatcher:
         self.create_worker('player', Player, True, True)
         self.create_worker('rfid_reader', RfidReader, True, True)
         self.create_worker('http_server', HttpServer, True, True)
+        self.create_worker('websocket_server', WebSocketServer, True, True)
 
         while True:
             msg = self.msg_queue.get()
@@ -138,6 +145,11 @@ class Dispatcher:
             self.pipes['rfid_reader'].send(('reread',0))
         return False
 
+    def msg_ws(self, msg):
+        logging.debug("WS message with value %s received" % msg.value)
+        if msg.value == 'get_items':
+            self.pipes['websocket_server'].send('broadcast', json.dumps(self.items))
+
     def msg_unknown(self, msg):
         logging.info("Unknown message: %s" % msg)
         return False
@@ -166,21 +178,35 @@ class Dispatcher:
         conn.execute('update lastpos set position = ?, fileindex = ? where foldername = ?', (seek_time, file_index, folder_name))
         conn.commit()
 
-    def add_item(self, path, item_id):
-        logging.warning("Adding path %s to items file" % path)
-        self.tree.getroot().append(ET.Element(tag='item', attrib={'id': "%s" % item_id, 'path': path, 'type': 'book', 'desc': path}))
-        self.tree.write(self.list_file, encoding='UTF-8')
+    def update_item(self, path, item_id, desc, data_dir):
+        logging.warning("Updating book info about item with path %s" % path)
+        root = self.tree[data_dir].getroot()
+        books = [x for x in root if x.attrib['path'] == path]
+        if len(books) > 1:
+            logging.error("More than one book at path %s" % path)
+            return
+        if len(books) == 0:
+            logging.error("Cannot find book at path %s" % path)
+        book = books[0]
+        book.attrib['id'] = "%s" % item_id
+        book.attrib['desc'] = desc
+        self.tree[data_dir].write(os.path.join(data_dir, self.list_file), encoding='UTF-8')
 
-    def check_list(self):
+    def add_item(self, path, item_id, data_dir):
+        logging.warning("Adding path %s to items file" % path)
+        self.tree[data_dir].getroot().append(ET.Element(tag='item', attrib={'id': "%s" % item_id, 'path': path, 'type': 'book', 'desc': path}))
+        self.tree[data_dir].write(os.path.join(data_dir, self.list_file), encoding='UTF-8')
+
+    def check_list(self, data_dir, items):
         checklist = {}
-        for item_id in self.items:
-            if self.items[item_id]['type'] != 'radio':
-                checklist[self.items[item_id]['path']] = item_id
+        for item_id in items:
+            if items[item_id]['type'] != 'radio':
+                checklist[items[item_id]['path']] = item_id
         max_item_id = 0
-        if len(self.items) > 0:
-            max_item_id = max(self.items.keys()) + 1
-        for d in os.listdir(self.data_dir):
-            dir_name = os.path.join(self.data_dir, d)
+        if len(items) > 0:
+            max_item_id = max(items.keys()) + 1
+        for d in os.listdir(data_dir):
+            dir_name = os.path.join(data_dir, d)
             if os.path.isdir(dir_name):
                 files = os.listdir(dir_name)
                 mp3_found = False
@@ -195,31 +221,83 @@ class Dispatcher:
                             del checklist[dir_name]
                             break
                         else:
-                            self.add_item(d, max_item_id)
+                            self.add_item(d, max_item_id, data_dir)
                             max_item_id += 1
                             break
                 if not mp3_found:
                     logging.error("Subdirectory %s contains no mp3 files" % d)
         for cl in checklist:
             logging.error("Path %s present in item xml file, but not found on disk" % cl)
-            del self.items[checklist[cl]]
+            del items[checklist[cl]]
 
-    def read_list(self):
-        self.items = {}
-        self.tree = ET.parse(self.list_file)
-        itemmap = self.tree.getroot()
+    def read_list(self, data_dir):
+        items = {}
+        self.tree[data_dir] = ET.parse(os.path.join(data_dir, self.list_file))
+        itemmap = self.tree[data_dir].getroot()
         for item in itemmap:
             if False in [x in item.attrib for x in ['id', 'desc', 'type', 'path']] :
                 logging.error("Item does not have one of the required attributes")
                 continue
             item_id = int(item.attrib['id'])
-            self.items[item_id] = copy.deepcopy(item.attrib)
-            del self.items[item_id]['id']
-            if self.items[item_id]['type'] != 'radio':
-                self.items[item_id]['path'] = os.path.join(self.data_dir, self.items[item_id]['path'])
-        logging.info('Items loaded')
+            items[item_id] = copy.deepcopy(item.attrib)
+            del items[item_id]['id']
+            if items[item_id]['type'] != 'radio':
+               items[item_id]['path'] = os.path.join(data_dir, items[item_id]['path'])
+        logging.info('Items loaded from path %s' % data_dir)
+        logging.debug(items)
+        self.check_list(data_dir, items)
+        return items
+
+    def init_list(self):
+        items = {}
+        for k,v in {'local': self.local_dir, 'remote': self.remote_dir}.iteritems():
+            items[k] = self.read_list(v)
+        paths = {}
+        for p in ['local', 'remote']:
+            paths[p] = {items[p][k]['path']: k for k in items[p]}
+        self.items = {k: dict(items['local'][k], local=True) for k in items['local']}
+
+        """
+        if rem_path exists locally and rem_id == loc_id and all data match ==> OK
+        if rem_path exists locally and rem_id == loc_id and data do not match ==> update local xml with info from remote
+        if rem_path exists locally and rem_id != loc_id ==>
+            if rem_id is not occupied locally ==> update local xml file with info from remote
+            if rem_id is used locally ==> push local record to new id, update xml file
+        if rem_path does not exist locally =>
+            if rem_id is not occupied locally ==> add info about remote file
+            if rem_id is used locally ==> push local record to new id, update xml file
+        """
+        max_item_id = max(items.keys()) + 1
+        for mp3_path in paths['remote']:
+            rem_id = paths['remote'][mp3_path]
+            if mp3_path in paths['local']:
+                loc_id = paths['local'][mp3_path]
+                if loc_id != rem_id:
+                    # we must check if the rem_id is already taken or not
+                    if rem_id in self.items:
+                        self.items[max_item_id] = self.items[rem_id]
+                        paths['local'][self.items[rem_id]['path']] = max_item_id
+                        max_item_id += 1
+                    self.items[rem_id] = self.items[loc_id]
+                    paths['local'][mp3_path] = rem_id
+                    del self.items[loc_id]
+            else:
+                if rem_id in self.items:
+                    # remote id is already taken
+                    self.items[max_item_id] = self.items[rem_id]
+                    paths['local'][self.items[rem_id]['path']] = max_item_id
+                    max_item_id += 1
+                self.items[rem_id] = items['remote'][rem_id]
+                paths['local'][mp3_path] = rem_id
+        # now check all local info whether it was changed or not
+        old_local_paths = {items['local'][k]['path']: k for k in items['local']}
+        for mp3_path in paths['local']:
+            old_id = old_local_paths[mp3_path]
+            cur_id = paths['local'][mp3_path]
+            if cur_id != old_id or self.items[cur_id] != items['local'][old_id]:
+                self.update_item(path=mp3_path, item_id=cur_id, desc=self.items[cur_id]['attrib'],
+                                 data_dir=self.local_dir)
         logging.debug(self.items)
-        self.check_list()
 
 
 if __name__ == "__main__":
