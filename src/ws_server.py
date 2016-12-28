@@ -24,8 +24,7 @@ from collections import deque
 from select import select
 
 
-logger = logging.getLogger("root.reader")
-
+logger = logging.getLogger(__name__)
 
 def _check_unicode(val):
     return isinstance(val, unicode)
@@ -590,6 +589,7 @@ class WebSocketServer(multiprocessing.Process):
             conn.handleClose()
 
     def run(self):
+        logger.warning("WebSocketServer running")
         while True:
             if self.pipe.poll():
                 cmnd = self.pipe.recv()
@@ -673,23 +673,23 @@ class WebSocketServer(multiprocessing.Process):
 class MessageBroker(WebSocket):
 
     def handleMessage(self):
-        logging.debug("socket is handling message")
+        logger.debug("socket is handling message")
         self.server.msg_queue.put(WebsocketMsg(self.data))
 
     def handleConnected(self):
-        logging.debug("connected from %s" % self.address)
+        logger.debug("connection from ip %s and port %s accepted" % self.address)
 
     def handleClose(self):
-        logging.debug("connection from %s closed" % self.address)
+        logger.debug("connection from ip %s and port %s closed" % self.address)
 
     def broadcast(self, message):
-        logging.debug("broadcasting message")
+        logger.debug("broadcasting message")
         self.sendMessage(message)
 
 
 if __name__ == "__main__":
     print "WebSocketServer class"
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     msg_queue = multiprocessing.Queue()
     to_worker, from_worker = multiprocessing.Pipe()
     server = WebSocketServer(from_worker, msg_queue)

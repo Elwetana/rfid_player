@@ -148,7 +148,7 @@ class Dispatcher:
     def msg_ws(self, msg):
         logging.debug("WS message with value %s received" % msg.value)
         if msg.value == 'get_items':
-            self.pipes['websocket_server'].send('broadcast', json.dumps(self.items))
+            self.pipes['websocket_server'].send(('broadcast', json.dumps(self.items)))
 
     def msg_unknown(self, msg):
         logging.info("Unknown message: %s" % msg)
@@ -293,29 +293,29 @@ class Dispatcher:
                 self.items[rem_id] = dict(items['remote'][rem_id], local=False)
         # now check all local info whether it was changed or not
         old_local_paths = {items['local'][k]['path']: k for k in items['local']}
-        print "old", old_local_paths
-        print "new", paths['local']
         for mp3_path in paths['local']:
             old_id = old_local_paths[mp3_path]
             cur_id = paths['local'][mp3_path]
-            if cur_id != old_id or self.items[cur_id] != items['local'][old_id]:
+            if cur_id != old_id or self.items[cur_id]['desc'] != items['local'][old_id]['desc']:
                 self.update_item(path=mp3_path, item_id=cur_id,
                                  desc=self.items[cur_id]['desc'],
                                  data_dir=self.local_dir)
-        print "consolidated items", self.items
+        # print "consolidated items", self.items
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(__file__))
     ##logging.config.fileConfig('logging.conf')
-    logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s',
+    logging.basicConfig(format='%(asctime)s - %(name)s %(levelname)s: %(message)s',
                         filename='../data/main.log', level=logging.DEBUG)
     #logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.error("====================== START ===========================")
     fout = open('../data/stdout.log', 'a')
     ferr = open('../data/stderr.log', 'a')
     fout.write("---------------------------------------\n**** %s\n" % time.asctime())
     ferr.write("---------------------------------------\n**** %s\n" % time.asctime())
-    sys.stdout = fout
-    sys.stderr = ferr
+    #sys.stdout = fout
+    #sys.stderr = ferr
     print 'Starting'
     dispatcher = Dispatcher()
     dispatcher.start()

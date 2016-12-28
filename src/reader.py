@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 import logging
 from message import Msg
 
-logger = logging.getLogger("root.reader")
+logger = logging.getLogger(__name__)
 
 class ReaderMsg(Msg):
 

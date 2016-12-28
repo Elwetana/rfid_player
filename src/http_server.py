@@ -8,7 +8,7 @@ import sqlite3
 import os
 from message import HttpMsg
 
-logger = logging.getLogger("root.reader")
+logger = logging.getLogger(__name__)
 
 
 class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
@@ -66,7 +66,7 @@ class HttpServer(multiprocessing.Process):
         self.server = BaseHTTPServer.HTTPServer(('', HttpServer.serverPort), HttpHandler)
         self.server.timeout = HttpServer.timeout
         self.server.msg_queue = self.msg_queue
-
+        logger.warning("HTTP server running")
         try:
             while True:
                 self.server.handle_request()

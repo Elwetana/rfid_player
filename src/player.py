@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 import logging
 import urlparse
 
-logger = logging.getLogger("root.player")
+logger = logging.getLogger(__name__)
 
 class PlayerMsg(Msg):
 
@@ -36,6 +36,7 @@ class Player(multiprocessing.Process):
         self.fest = socket.socket()
         self.fest.connect(('localhost',1314))
         self.folder_name = ''
+        logger.warning("Player running")
         while True:
             if self.pipe.poll(None):
                 cmnd = self.pipe.recv()
