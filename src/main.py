@@ -193,7 +193,8 @@ class Dispatcher:
         self.tree[data_dir].write(os.path.join(data_dir, self.list_file), encoding='UTF-8')
 
     def add_item(self, path, item_id, data_dir):
-        logging.warning("Adding path %s to items file" % path)
+        path = unicode(path, 'utf-8')
+        logging.warning("Adding path %s to items file in dir %s" % (path, data_dir))
         self.tree[data_dir].getroot().append(ET.Element(tag='item', attrib={'id': "%s" % item_id, 'path': path, 'type': 'book', 'desc': path}))
         self.tree[data_dir].write(os.path.join(data_dir, self.list_file), encoding='UTF-8')
 
@@ -217,8 +218,9 @@ class Dispatcher:
                     name, ext = os.path.splitext(f)
                     if ext.lower() == '.mp3':
                         mp3_found = True
-                        if dir_name in checklist:
-                            del checklist[dir_name]
+                        d = unicode(d, 'utf-8')
+                        if d in checklist:
+                            del checklist[d]
                             break
                         else:
                             self.add_item(d, max_item_id, data_dir)
@@ -241,10 +243,9 @@ class Dispatcher:
             item_id = int(item.attrib['id'])
             items[item_id] = copy.deepcopy(item.attrib)
             del items[item_id]['id']
-            if items[item_id]['type'] != 'radio':
-               items[item_id]['path'] = os.path.join(data_dir, items[item_id]['path'])
+            #if items[item_id]['type'] != 'radio':
+            #   items[item_id]['path'] = os.path.join(data_dir, items[item_id]['path'])
         logging.info('Items loaded from path %s' % data_dir)
-        logging.debug(items)
         self.check_list(data_dir, items)
         return items
 
@@ -267,7 +268,9 @@ class Dispatcher:
             if rem_id is not occupied locally ==> add info about remote file
             if rem_id is used locally ==> push local record to new id, update xml file
         """
-        max_item_id = max(items.keys()) + 1
+        max_item_id = 1
+        if len(self.items) > 0:
+            max_item_id = max(self.items.keys()) + 1
         for mp3_path in paths['remote']:
             rem_id = paths['remote'][mp3_path]
             if mp3_path in paths['local']:
@@ -287,23 +290,25 @@ class Dispatcher:
                     self.items[max_item_id] = self.items[rem_id]
                     paths['local'][self.items[rem_id]['path']] = max_item_id
                     max_item_id += 1
-                self.items[rem_id] = items['remote'][rem_id]
-                paths['local'][mp3_path] = rem_id
+                self.items[rem_id] = dict(items['remote'][rem_id], local=False)
         # now check all local info whether it was changed or not
         old_local_paths = {items['local'][k]['path']: k for k in items['local']}
+        print "old", old_local_paths
+        print "new", paths['local']
         for mp3_path in paths['local']:
             old_id = old_local_paths[mp3_path]
             cur_id = paths['local'][mp3_path]
             if cur_id != old_id or self.items[cur_id] != items['local'][old_id]:
-                self.update_item(path=mp3_path, item_id=cur_id, desc=self.items[cur_id]['attrib'],
+                self.update_item(path=mp3_path, item_id=cur_id,
+                                 desc=self.items[cur_id]['desc'],
                                  data_dir=self.local_dir)
-        logging.debug(self.items)
-
+        print "consolidated items", self.items
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(__file__))
     ##logging.config.fileConfig('logging.conf')
-    logging.basicConfig(filename='../data/main.log', level=logging.WARNING)
+    logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s',
+                        filename='../data/main.log', level=logging.DEBUG)
     #logging.basicConfig(level=logging.INFO)
     fout = open('../data/stdout.log', 'a')
     ferr = open('../data/stderr.log', 'a')
