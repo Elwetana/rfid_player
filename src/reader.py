@@ -66,11 +66,12 @@ class RfidReader(multiprocessing.Process):
                         self.add_card(rfidData)
                 if self.pipe.poll():
                     cmnd = self.pipe.recv()
+                    logger.debug("Reader received message %s" % cmnd[0])
                     if cmnd[0] == 'reread':
                         self.read_cards()
                     if cmnd[0] == 'get_cards':
-                        cards_id = {rfid : dict(self.cards[rfid], hid=self.get_card_id(rfid)) for rfid in self.cards}
-                        self.pipe.send(('cards', json.dump(['cards', cards_id])))
+                        cards_id = {rfid : dict(item_id=self.cards[rfid], hid=self.get_card_id(rfid)) for rfid in self.cards}
+                        self.pipe.send(('cards', json.dumps(['cards', cards_id])))
                     if cmnd[0] == 'quit':
                         break
         except:
@@ -124,7 +125,6 @@ class RfidReader(multiprocessing.Process):
             name = "invalid"
             if is_valid:
                 name = self.get_card_id(card)
-            print self.cards[card], name, is_valid
 
 if __name__ == "__main__":
     print "RFID card reader class"
@@ -132,8 +132,20 @@ if __name__ == "__main__":
     msg_queue = multiprocessing.Queue()
     to_worker, from_worker = multiprocessing.Pipe()
     reader = RfidReader(from_worker, msg_queue)
-    reader.check_cards()
     reader.start()
+
+    import time
+    reader.check_cards()
+    to_worker.send(('get_cards', ''))
+    i = 0
+    while not(to_worker.poll()):
+        time.sleep(0.1)
+        i += 1
+        if i > 50: # we have waited 5 seconds
+            print "Reader did not return cards"
+            sys.exit(1)
+    cmnd = to_worker.recv()
+    print cmnd
     while True:
         msg = msg_queue.get()
         print msg.value
