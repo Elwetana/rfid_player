@@ -5,6 +5,7 @@ import multiprocessing
 import xml.etree.ElementTree as ET
 import logging
 from message import Msg
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,9 @@ class RfidReader(multiprocessing.Process):
                     cmnd = self.pipe.recv()
                     if cmnd[0] == 'reread':
                         self.read_cards()
+                    if cmnd[0] == 'get_cards':
+                        cards_id = {rfid : dict(self.cards[rfid], hid=self.get_card_id(rfid)) for rfid in self.cards}
+                        self.pipe.send(('cards', json.dump(['cards', cards_id])))
                     if cmnd[0] == 'quit':
                         break
         except:

@@ -2,14 +2,58 @@
     <head>
         <meta charset="utf-8" />
         <title>RFID reader configuration</title>
+        <script src='https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js'></script>
+        <style>
+.gu-mirror {
+  position: fixed !important;
+  margin: 0 !important;
+  z-index: 9999 !important;
+  opacity: 0.8;
+  -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=80)";
+  filter: alpha(opacity=80);
+}
+.gu-hide {
+  display: none !important;
+}
+.gu-unselectable {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+}
+.gu-transit {
+  opacity: 0.2;
+  -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=20)";
+  filter: alpha(opacity=20);
+}
 
+table div {
+  height: 20px;
+  width: 30px;
+  background-color: red;
+}
+        </style>
 <script language="javascript" type="text/javascript">
     var ws_address = '192.168.88.59:8000';
     var websocket = null;
+    var json_recv = ["list", {"0": {"path": "capek", "local": true, "type": "book", "desc": "capek"}, "1": {"path": "Urban-Milos_Pole-a-palisada", "local": false, "type": "book", "desc": "Milo\u0161 Urban: Pole a palis\u00e1da"}, "3": {"path": "http://icecast1.play.cz/croplus32.mp3", "local": false, "type": "radio", "desc": "\u010cesk\u00fd rozhlas plus"}, "4": {"path": "http://icecast5.play.cz/cro1-32.mp3", "local": false, "type": "radio", "desc": "Radio\u017eurn\u00e1l"}, "5": {"path": "http://icecast5.play.cz/cro2-32.mp3", "local": false, "type": "radio", "desc": "\u010cesk\u00fd rozhlas dvojka"}, "6": {"path": "http://icecast5.play.cz/cro3-32.mp3", "local": false, "type": "radio", "desc": "Stanice Vltava"}, "7": {"path": "Topol-Jachym_Cesta-do-Bugulmy", "local": false, "type": "book", "desc": "J\u00e1chym Topol: Cesta do Bugulmy"}, "8": {"path": "Vieweghm_Tri-Tatinci-a-Maminka", "local": false, "type": "book", "desc": "Michal V\u00edveg: T\u0159i Tat\u00ednci-a-Maminka"}, "9": {"path": "Spacek_mala-kniha-etikety-pro-celou-rodinu", "local": false, "type": "book", "desc": "Ladislav \u0160pa\u010dek: Mal\u00e1 kniha etikety pro celou rodinu"}, "10": {"path": "Formanova-Martina_skladatelka-vonaveho-pradla", "local": false, "type": "book", "desc": "Martina Formanov\u00e1: Skladatelka vo\u0148av\u00e9ho pr\u00e1dla"}, "11": {"path": "Rosten-Leo_pan-kaplan-ma-stale-tridu-rad", "local": false, "type": "book", "desc": "Leo Rosten: Pan Kaplan m\u00e1 st\u00e1le t\u0159\u00eddu r\u00e1d"}, "12": {"path": "Spacek_deset-let-s-vaclavem-havlem", "local": false, "type": "book", "desc": "Ladislav \u0160pa\u010dek: Deset let s V\u00e1clavem Havlem"}, "13": {"path": "Galbraith_Volani-Kukacky", "local": false, "type": "book", "desc": "D\u017eon Galbrejs: Vol\u00e1n\u00ed Kuka\u010dky"}, "14": {"path": "Pawlovska_strasna-nadhera", "local": false, "type": "book", "desc": "Halina Pawlovsk\u00e1: Stra\u0161n\u00e1 n\u00e1dhera"}, "15": {"path": "Skvorecky_Ze-zivota-lepsi-spolecnosti", "local": false, "type": "book", "desc": "Josef \u0160kvoreck\u00fd: Ze \u017eivota lep\u0161\u00ed spole\u010dnosti"}, "16": {"path": "Mycelium-01-Jantarove-oci", "local": false, "type": "book", "desc": "Vilma Kadle\u010dkov\u00e1: Mycelium 1. Jantarov\u00e9 o\u010di"}, "17": {"path": "Denik-maleho-poseroutky", "local": false, "type": "book", "desc": "Jeff Kiney: Den\u00edk mal\u00e9ho poseroutky"}, "18": {"path": "Albrightova_prazska-zima", "local": false, "type": "book", "desc": "Madeleine Albrightov\u00e1: Pra\u017esk\u00e1 Zima"}, "19": {"path": "Brown-Dan_Inferno", "local": false, "type": "book", "desc": "Dan Brown: Inferno"}, "20": {"path": "urban-milos_stin-katedraly", "local": false, "type": "book", "desc": "Milo\u0161 Urban: St\u00edn katedr\u00e1ly"}, "21": {"path": "Jay-Lynn_Jiste-pane-ministre", "local": false, "type": "book", "desc": "Jist\u011b, pane minist\u0159e"}, "22": {"path": "Tolkien_Hobit", "local": false, "type": "book", "desc": "D\u017eon \u00c1r \u00c1r Tolk\u00edn: Hobit"}, "23": {"path": "Hornicek_Utajene-housle", "local": false, "type": "book", "desc": "Miroslav Horn\u00ed\u010dek: Dob\u0159e utajen\u00e9 housle"}, "24": {"path": "Brown-Dan_Sifra-mistra-leonarda", "local": false, "type": "book", "desc": "Dan Braun: \u0160ifra mistra Leonarda"}, "25": {"path": "Capek_Povidky", "local": false, "type": "book", "desc": "Karel \u010capek: Pov\u00eddky (v\u00fdb\u011br)"}, "26": {"path": "Jonasson_Stolety-starik-ktery-vylezl-z-okna", "local": false, "type": "book", "desc": "Jonas Jonasson: Stolet\u00fd sta\u0159\u00edk, kter\u00fd vylezl z okna"}, "27": {"path": "Jonasson_Analfabetka-ktera-umela-pocitat", "local": false, "type": "book", "desc": "Jonas Jonasson: Analfabetka, kter\u00e1 um\u011bla po\u010d\u00edtat"}, "28": {"path": "Christie_Vrazda-Rogera-Ackroyda", "local": false, "type": "book", "desc": "Ag\u00e1ta Christ\u00fd: Vra\u017eda Rod\u017eera Akrojda"}, "29": {"path": "Rozhlas_o-karlu-capkovi", "local": false, "type": "book", "desc": "\u010cesk\u00fd rozhlas dvojka: Po\u0159ad o Karlu \u010capkovi"}, "30": {"path": "Vondruska_Ztracena-relikvie", "local": false, "type": "book", "desc": "Vondru\u0161ka: Ztracen\u00e1 relikvie"}, "31": {"path": "Jirotka_Saturnin", "local": false, "type": "book", "desc": "Zden\u011bk Jirotka: Saturnin"}, "32": {"path": "Fitzgerald_Velky-Gatsby", "local": false, "type": "book", "desc": "Frencis Skot Ficgerald: Velk\u00fd Getsby"}, "33": {"path": "kriseova-eda_pohreb-kocaroveho-kociho-1993", "local": false, "type": "book", "desc": "Eda Kriseova: Poh\u0159eb ko\u010d\u00e1rov\u00e9ho ko\u010d\u00edho"}, "34": {"path": "Kriseova-Eda_Vaclav-Havel", "local": false, "type": "book", "desc": "Eda Kriseova: V\u00e1clav Havel"}, "35": {"path": "Kacirkova-Eva_Dum-bez-oken", "local": false, "type": "book", "desc": "Eva Ka\u010d\u00edrkov\u00e1: D\u016fm bez oken"}, "36": {"path": "Balaban_zeptej_se_taty", "local": false, "type": "book", "desc": "Jan Balab\u00e1n: Zeptej se t\u00e1ty"}, "37": {"path": "Kosatik-Pavel_Osm-zen-z-hradu", "local": false, "type": "book", "desc": "Pavel Kosat\u00edk: Osm \u017een z hradu"}, "38": {"path": "Backman_babicka-pozdravuje-a-omlouva-se", "local": false, "type": "book", "desc": "Fredrik Bekmen: Babi\u010dka pozdravuje a omlouv\u00e1 se"}, "39": {"path": "Berniers_Mandolina-kapitana-Corelliho", "local": false, "type": "book", "desc": "L\u016fj de Berni\u00e9: Mandol\u00edna kapit\u00e1na Koreliho"}, "40": {"path": "Pavel_Pan-Simral-prichazi", "local": false, "type": "book", "desc": "Lubo\u0161 Pavel: Pan \u0160imral p\u0159ich\u00e1z\u00ed"}, "41": {"path": "Eisner_Chram-i-tvrz", "local": false, "type": "book", "desc": "Pavel Ajsner: Chr\u00e1m i tvrz"}, "42": {"path": "Suchy_Osudy", "local": false, "type": "book", "desc": "Ji\u0159\u00ed Such\u00fd: Osudy"}, "43": {"path": "Vancura_Marketa-Lazarova", "local": false, "type": "book", "desc": "Vladislav Van\u010dura: Mark\u00e9ta Lazarov\u00e1"}, "44": {"path": "Dahl_Karlika-a-tovarna-na-cokoladu", "local": false, "type": "book", "desc": "Roald Dal: Karl\u00edk a tov\u00e1rna na \u010dokol\u00e1du"}, "45": {"path": "Jerome-Klapka_Tri-muzi-ve-clunu", "local": true, "type": "book", "desc": "Jerome-Klapka_Tri-muzi-ve-clunu"}, "46": {"path": "Klima_Moje-prvni-lasky", "local": false, "type": "book", "desc": "Ivan Kl\u00edma: Moje prvn\u00ed l\u00e1sky"}, "47": {"path": "Kosatik-Pavel_Ceske-okamziky", "local": false, "type": "book", "desc": "Pavel Kosat\u00edk: \u010cesk\u00e9 okam\u017eiky"}, "48": {"path": "Vondruska_Pripad-masopustnich-maskar", "local": false, "type": "book", "desc": "Vlastimil Vondru\u0161ka: P\u0159\u00edpad masopustn\u00edch ma\u0161kar"}, "49": {"path": "Skacel_Smutenka", "local": false, "type": "book", "desc": "Jan Sk\u00e1cel: Smut\u00e9nka"}, "50": {"path": "Hornicek_Saze-na-hrusce", "local": false, "type": "book", "desc": "Miroslav Horn\u00ed\u010dek: Saze na hru\u0161ce"}, "51": {"path": "Davouze_Dum-v-Bretani", "local": false, "type": "book", "desc": "Marta Dav\u016fz: D\u016fm v Bretani"}, "52": {"path": "Vondruska_Jmenem-krale", "local": false, "type": "book", "desc": "Vlastimil Vondru\u0161ka: Jm\u00e9nem kr\u00e1le"}, "53": {"path": "Bouckova_Silene-smutne-povidky", "local": false, "type": "book", "desc": "Tereza Bou\u010dkov\u00e1: \u0160\u00edlen\u011b smutn\u00e9 pov\u00eddky"}, "54": {"path": "Mayle_Rok-v-provance", "local": false, "type": "book", "desc": "P\u00edtr Mejl: Rok v prov\u00e1ns"}, "55": {"path": "Laclos_Nebezpecne-znamosti", "local": false, "type": "book", "desc": "Choderlos de Laklos: Nebezpe\u010dn\u00e9 zn\u00e1mosti"}, "56": {"path": "Potterova_Neni-prani-jako-prani", "local": false, "type": "book", "desc": "Potterova_Neni-prani-jako-prani"}, "57": {"path": "McDonaldova_Co-zivot-dal-a-vzal", "local": false, "type": "book", "desc": "McDonaldova_Co-zivot-dal-a-vzal"}, "59": {"path": "Karel-IV", "local": false, "type": "book", "desc": "Karel-IV"}, "61": {"path": "Chang-Divoke_labute", "local": false, "type": "book", "desc": "Chang-Divoke_labute"}, "62": {"path": "Giesbert-Franz-Olivier_Himmlerova-kucha\u0159ka", "local": false, "type": "book", "desc": "Giesbert-Franz-Olivier_Himmlerova-kucha\u0159ka"}, "63": {"path": "Werich_Cochtan_vypravuje", "local": false, "type": "book", "desc": "Werich_Cochtan_vypravuje"}, "64": {"path": "Devata_Jak-jsem-se-zblaznila", "local": false, "type": "book", "desc": "Devata_Jak-jsem-se-zblaznila"}}];
+
+    var itemList = json_recv[1];
+    var drake;
+    /*drake.on("dragend", function(el) { alert(el); });*/
+    /*drake.on("drag", function(el, source) {
+        alert(el);
+        alert(source)
+    })*/;
+    var i = 0;
 
     function init()
     {
+        //doConnect();
+        //sendMessage("get_items", {});
+        document.getElementById("tst").onclick=buttonClicked
     }
+
     function doConnect()
     {
         websocket = new WebSocket(ws_address);
@@ -21,61 +65,90 @@
 
     function onOpen(evt)
     {
-        writeToScreen("connected\n");
-        //document.myform.connectButton.disabled = true;
-        //document.myform.disconnectButton.disabled = false;
+        writeToScreen("Connected to server");
     }
 
-  function onClose(evt)
-  {
-    writeToScreen("disconnected\n");
-	document.myform.connectButton.disabled = false;
-	document.myform.disconnectButton.disabled = true;
-  }
+    function onClose(evt)
+    {
+        writeToScreen("Disconnected from server");
+    }
 
-  function onMessage(evt)
-  {
-    writeToScreen("response: " + evt.data + '\n');
-  }
+    function onError(evt)
+    {
+        writeToScreen('Error: ' + evt.data);
+        websocket.close();
+    }
 
-  function onError(evt)
-  {
-    writeToScreen('error: ' + evt.data + '\n');
+    function doSend(message)
+    {
+        writeToScreen("Sent message: " + message);
+        websocket.send(message);
+    }
 
-	websocket.close();
+    function doDisconnect()
+    {
+        websocket.close();
+    }
 
-	document.myform.connectButton.disabled = false;
-	document.myform.disconnectButton.disabled = true;
+    function onMessage(evt)
+    {
+        var data_type = evt.data[1]
+        var data = evt.data[1];
+        writeToScreen("Data from server received: " + data_type);
+        if(data_type == 'list') {
+            itemList = JSON.parse(data);
+        }
+        else if(data_type == 'cards') {
+            cardList = JSON.parse(data);
+        }
+    }
 
-  }
+    function sendMessage(msg_type, data)
+    {
+        doSend(JSON.stringify([msg_type, data]));
+    }
 
-  function doSend(message)
-  {
-    writeToScreen("sent: " + message + '\n');
-    websocket.send(message);
-  }
+    function writeToScreen(message)
+    {
+        var log = document.getElementById("log");
+        while(log.children.length > 4) {
+        		log.children[log.children.length - 1].remove();
+        }
+        var entry = document.createElement("p");
+        entry.innerHTML = message;
+        log.insertBefore(entry, log.firstChild);
+    }
 
-  function writeToScreen(message)
-  {
-    document.myform.outputtext.value += message
-	document.myform.outputtext.scrollTop = document.myform.outputtext.scrollHeight;
+    function MakeItemListTable()
+    {
+        var listDiv = document.getElementById("list")
+        var table = document.createElement("table")
+        var tds = [];
+        for(var id in itemList) {
+            var rowData = itemList[id];
+            var elRow = document.createElement("tr");
+            var elId = elRow.appendChild(document.createElement("td"));
+            var elIdDiv = elId.appendChild(document.createElement("div"));
+            elIdDiv.innerHTML = id;
+            tds.push(elId);
+            var elPath = elRow.appendChild(document.createElement("td"));
+            elPath.innerHTML = rowData['path'];
+            var elDesc = elRow.appendChild(document.createElement("td"));
+            elDesc.innerHTML = rowData['desc'];
+            table.appendChild(elRow);
+        }
+        listDiv.appendChild(table)
+        drake = dragula(tds);
+    }
 
-  }
+	function buttonClicked()
+    {
+        i++;
+   	    writeToScreen('test ' + i);
+   	    MakeItemListTable();
+    }
 
-  window.addEventListener("load", init, false);
-
-
-   function sendText() {
-		doSend( document.myform.inputtext.value );
-   }
-
-  function clearText() {
-		document.myform.outputtext.value = "";
-   }
-
-   function doDisconnect() {
-		websocket.close();
-   }
+    window.addEventListener("load", init, false);
 
 </script>
     </head>
@@ -88,6 +161,8 @@
         <p><a href="/reread">Reread the list of cards</a></p>
         <p><a href="/terminate">Terminate the main loop (you will need to restart the machine)</a></p>
         <div id="list"></div>
+        <div id="log" style="width: 100px; height: 100px;"><p></p></div>
+        <button id="tst" onclick="buttonClicked()">Test</button>
         <div class="lastpos">
             {LastposTable}
         </div>

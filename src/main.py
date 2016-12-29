@@ -148,7 +148,23 @@ class Dispatcher:
     def msg_ws(self, msg):
         logging.debug("WS message with value %s received" % msg.value)
         if msg.value == 'get_items':
-            self.pipes['websocket_server'].send(('broadcast', json.dumps(self.items)))
+            self.pipes['websocket_server'].send(('broadcast', json.dumps(["list", self.items])))
+        if msg.value == 'get_cards':
+            self.pipes['rfid_reader'].send(('get_cards', ''))
+            i = 0
+            while not(self.pipes['rfid_reader'].poll()):
+                time.sleep(0.1)
+                i += 1
+                if i > 50: # we have waited 5 seconds
+                    logger.error("Reader did not return cards")
+                    self.pipes['websocket_server'].send(('broadcast', json.dumps(['error', 'cards not available'])))
+                    return
+            cmnd = self.pipes['rfid_reader'].recv()
+            self.pipes['websocket_server'].send(('broadcast', cmnd[1]))
+        if msg.value == 'update_item':
+            self.update_item(msg.payload['path'], msg.payload['id'], msg.payload['desc'], self.remote_dir)
+
+        return False
 
     def msg_unknown(self, msg):
         logging.info("Unknown message: %s" % msg)

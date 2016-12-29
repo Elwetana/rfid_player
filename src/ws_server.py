@@ -20,6 +20,7 @@ import socket
 import struct
 import errno
 import codecs
+import json
 from collections import deque
 from select import select
 
@@ -674,7 +675,8 @@ class MessageBroker(WebSocket):
 
     def handleMessage(self):
         logger.debug("socket is handling message")
-        self.server.msg_queue.put(WebsocketMsg(self.data))
+        message = json.loads(self.data, encoding='utf-8')
+        self.server.msg_queue.put(WebsocketMsg(message[0], message[1]))
 
     def handleConnected(self):
         logger.debug("connection from ip %s and port %s accepted" % self.address)

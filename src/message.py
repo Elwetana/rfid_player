@@ -13,7 +13,8 @@ class HttpMsg(Msg):
         self.needs_ack = True
 
 class WebsocketMsg(Msg):
-    def __init__(self, ws_data):
+    def __init__(self, ws_data, payload = None):
         self.msg_type = 'ws'
         self.value = ws_data
+        self.payload = payload
         self.needs_ack = False
