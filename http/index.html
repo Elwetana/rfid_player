@@ -4,55 +4,115 @@
         <title>RFID reader configuration</title>
         <script src='https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js'></script>
         <style>
-.gu-mirror {
-  position: fixed !important;
-  margin: 0 !important;
-  z-index: 9999 !important;
-  opacity: 0.8;
-  -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=80)";
-  filter: alpha(opacity=80);
-}
-.gu-hide {
-  display: none !important;
-}
-.gu-unselectable {
-  -webkit-user-select: none !important;
-  -moz-user-select: none !important;
-  -ms-user-select: none !important;
-  user-select: none !important;
-}
-.gu-transit {
-  opacity: 0.2;
-  -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=20)";
-  filter: alpha(opacity=20);
-}
-
-            table td {
-                /*padding: 5px;*/
+            .gu-mirror {
+                position: fixed !important;
+                margin: 0 !important;
+                z-index: 9999 !important;
+                opacity: 0.8;
+                -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=80)";
+                filter: alpha(opacity=80);
             }
-table div {
-    height: 20px;
-    width: 30px;
-    background-color: red;
-    margin: 5px;
-}
+            
+            .gu-hide {
+                display: none !important;
+            }
+            
+            .gu-unselectable {
+                -webkit-user-select: none !important;
+                -moz-user-select: none !important;
+                -ms-user-select: none !important;
+                user-select: none !important;
+            }
+
+            .gu-transit {
+                opacity: 0.2;
+                -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=20)";
+                filter: alpha(opacity=20);
+            }
+            
+            /*---------------------------------------------------------------------------------------------*/
+            
+            .alarm {
+                background-color: red;
+            }
+            
+            h2 {
+                font-family: Corbel;
+                font-size: 16pt;
+                font-weight: bold;
+                margin-bottom: 6px;
+                text-align: center;
+            }
+            
+            h3 {
+                font-family: Corbel;
+                font-size: 14pt;
+                font-weight: bold;
+                margin-bottom: 6px;
+            }
+            
+            div#log p {
+                margin: 0;
+                font-family: sans-serif;
+                font-size: 10pt;
+            }
+            
+            div.tables {
+                width: 900px;
+                margin: 0 auto;
+            }
+            
+            table {
+                font-family: Calibri, sans-serif;
+                font-size: 12pt;
+            }
+            
+            table td {
+                margin: 0 2px;
+                padding: 0 3px;
+            }
+
+            table div {
+                height: 20px;
+                width: 80px;
+                margin: 2px;
+                text-align: center;
+            }
+            
+            table div.has_card {
+                background-color: chartreuse;
+            }
+            
+            table div.no_card {
+                background-color: orangered;
+            }
+            
+            table textarea {
+                width: 400px;
+                height: 20px;
+                resize: horizontal;
+                font-family: Calibri, sans-serif;
+                font-size: 12pt;
+            }
         </style>
 <script language="javascript" type="text/javascript">
-    var ws_address = '192.168.88.59:8000';
-    var websocket = null;
     var json_recv = ["list", {"0": {"path": "capek", "local": true, "type": "book", "desc": "capek"}, "1": {"path": "Urban-Milos_Pole-a-palisada", "local": false, "type": "book", "desc": "Milo\u0161 Urban: Pole a palis\u00e1da"}, "3": {"path": "http://icecast1.play.cz/croplus32.mp3", "local": false, "type": "radio", "desc": "\u010cesk\u00fd rozhlas plus"}, "4": {"path": "http://icecast5.play.cz/cro1-32.mp3", "local": false, "type": "radio", "desc": "Radio\u017eurn\u00e1l"}, "5": {"path": "http://icecast5.play.cz/cro2-32.mp3", "local": false, "type": "radio", "desc": "\u010cesk\u00fd rozhlas dvojka"}, "6": {"path": "http://icecast5.play.cz/cro3-32.mp3", "local": false, "type": "radio", "desc": "Stanice Vltava"}, "7": {"path": "Topol-Jachym_Cesta-do-Bugulmy", "local": false, "type": "book", "desc": "J\u00e1chym Topol: Cesta do Bugulmy"}, "8": {"path": "Vieweghm_Tri-Tatinci-a-Maminka", "local": false, "type": "book", "desc": "Michal V\u00edveg: T\u0159i Tat\u00ednci-a-Maminka"}, "9": {"path": "Spacek_mala-kniha-etikety-pro-celou-rodinu", "local": false, "type": "book", "desc": "Ladislav \u0160pa\u010dek: Mal\u00e1 kniha etikety pro celou rodinu"}, "10": {"path": "Formanova-Martina_skladatelka-vonaveho-pradla", "local": false, "type": "book", "desc": "Martina Formanov\u00e1: Skladatelka vo\u0148av\u00e9ho pr\u00e1dla"}, "11": {"path": "Rosten-Leo_pan-kaplan-ma-stale-tridu-rad", "local": false, "type": "book", "desc": "Leo Rosten: Pan Kaplan m\u00e1 st\u00e1le t\u0159\u00eddu r\u00e1d"}, "12": {"path": "Spacek_deset-let-s-vaclavem-havlem", "local": false, "type": "book", "desc": "Ladislav \u0160pa\u010dek: Deset let s V\u00e1clavem Havlem"}, "13": {"path": "Galbraith_Volani-Kukacky", "local": false, "type": "book", "desc": "D\u017eon Galbrejs: Vol\u00e1n\u00ed Kuka\u010dky"}, "14": {"path": "Pawlovska_strasna-nadhera", "local": false, "type": "book", "desc": "Halina Pawlovsk\u00e1: Stra\u0161n\u00e1 n\u00e1dhera"}, "15": {"path": "Skvorecky_Ze-zivota-lepsi-spolecnosti", "local": false, "type": "book", "desc": "Josef \u0160kvoreck\u00fd: Ze \u017eivota lep\u0161\u00ed spole\u010dnosti"}, "16": {"path": "Mycelium-01-Jantarove-oci", "local": false, "type": "book", "desc": "Vilma Kadle\u010dkov\u00e1: Mycelium 1. Jantarov\u00e9 o\u010di"}, "17": {"path": "Denik-maleho-poseroutky", "local": false, "type": "book", "desc": "Jeff Kiney: Den\u00edk mal\u00e9ho poseroutky"}, "18": {"path": "Albrightova_prazska-zima", "local": false, "type": "book", "desc": "Madeleine Albrightov\u00e1: Pra\u017esk\u00e1 Zima"}, "19": {"path": "Brown-Dan_Inferno", "local": false, "type": "book", "desc": "Dan Brown: Inferno"}, "20": {"path": "urban-milos_stin-katedraly", "local": false, "type": "book", "desc": "Milo\u0161 Urban: St\u00edn katedr\u00e1ly"}, "21": {"path": "Jay-Lynn_Jiste-pane-ministre", "local": false, "type": "book", "desc": "Jist\u011b, pane minist\u0159e"}, "22": {"path": "Tolkien_Hobit", "local": false, "type": "book", "desc": "D\u017eon \u00c1r \u00c1r Tolk\u00edn: Hobit"}, "23": {"path": "Hornicek_Utajene-housle", "local": false, "type": "book", "desc": "Miroslav Horn\u00ed\u010dek: Dob\u0159e utajen\u00e9 housle"}, "24": {"path": "Brown-Dan_Sifra-mistra-leonarda", "local": false, "type": "book", "desc": "Dan Braun: \u0160ifra mistra Leonarda"}, "25": {"path": "Capek_Povidky", "local": false, "type": "book", "desc": "Karel \u010capek: Pov\u00eddky (v\u00fdb\u011br)"}, "26": {"path": "Jonasson_Stolety-starik-ktery-vylezl-z-okna", "local": false, "type": "book", "desc": "Jonas Jonasson: Stolet\u00fd sta\u0159\u00edk, kter\u00fd vylezl z okna"}, "27": {"path": "Jonasson_Analfabetka-ktera-umela-pocitat", "local": false, "type": "book", "desc": "Jonas Jonasson: Analfabetka, kter\u00e1 um\u011bla po\u010d\u00edtat"}, "28": {"path": "Christie_Vrazda-Rogera-Ackroyda", "local": false, "type": "book", "desc": "Ag\u00e1ta Christ\u00fd: Vra\u017eda Rod\u017eera Akrojda"}, "29": {"path": "Rozhlas_o-karlu-capkovi", "local": false, "type": "book", "desc": "\u010cesk\u00fd rozhlas dvojka: Po\u0159ad o Karlu \u010capkovi"}, "30": {"path": "Vondruska_Ztracena-relikvie", "local": false, "type": "book", "desc": "Vondru\u0161ka: Ztracen\u00e1 relikvie"}, "31": {"path": "Jirotka_Saturnin", "local": false, "type": "book", "desc": "Zden\u011bk Jirotka: Saturnin"}, "32": {"path": "Fitzgerald_Velky-Gatsby", "local": false, "type": "book", "desc": "Frencis Skot Ficgerald: Velk\u00fd Getsby"}, "33": {"path": "kriseova-eda_pohreb-kocaroveho-kociho-1993", "local": false, "type": "book", "desc": "Eda Kriseova: Poh\u0159eb ko\u010d\u00e1rov\u00e9ho ko\u010d\u00edho"}, "34": {"path": "Kriseova-Eda_Vaclav-Havel", "local": false, "type": "book", "desc": "Eda Kriseova: V\u00e1clav Havel"}, "35": {"path": "Kacirkova-Eva_Dum-bez-oken", "local": false, "type": "book", "desc": "Eva Ka\u010d\u00edrkov\u00e1: D\u016fm bez oken"}, "36": {"path": "Balaban_zeptej_se_taty", "local": false, "type": "book", "desc": "Jan Balab\u00e1n: Zeptej se t\u00e1ty"}, "37": {"path": "Kosatik-Pavel_Osm-zen-z-hradu", "local": false, "type": "book", "desc": "Pavel Kosat\u00edk: Osm \u017een z hradu"}, "38": {"path": "Backman_babicka-pozdravuje-a-omlouva-se", "local": false, "type": "book", "desc": "Fredrik Bekmen: Babi\u010dka pozdravuje a omlouv\u00e1 se"}, "39": {"path": "Berniers_Mandolina-kapitana-Corelliho", "local": false, "type": "book", "desc": "L\u016fj de Berni\u00e9: Mandol\u00edna kapit\u00e1na Koreliho"}, "40": {"path": "Pavel_Pan-Simral-prichazi", "local": false, "type": "book", "desc": "Lubo\u0161 Pavel: Pan \u0160imral p\u0159ich\u00e1z\u00ed"}, "41": {"path": "Eisner_Chram-i-tvrz", "local": false, "type": "book", "desc": "Pavel Ajsner: Chr\u00e1m i tvrz"}, "42": {"path": "Suchy_Osudy", "local": false, "type": "book", "desc": "Ji\u0159\u00ed Such\u00fd: Osudy"}, "43": {"path": "Vancura_Marketa-Lazarova", "local": false, "type": "book", "desc": "Vladislav Van\u010dura: Mark\u00e9ta Lazarov\u00e1"}, "44": {"path": "Dahl_Karlika-a-tovarna-na-cokoladu", "local": false, "type": "book", "desc": "Roald Dal: Karl\u00edk a tov\u00e1rna na \u010dokol\u00e1du"}, "45": {"path": "Jerome-Klapka_Tri-muzi-ve-clunu", "local": true, "type": "book", "desc": "Jerome-Klapka_Tri-muzi-ve-clunu"}, "46": {"path": "Klima_Moje-prvni-lasky", "local": false, "type": "book", "desc": "Ivan Kl\u00edma: Moje prvn\u00ed l\u00e1sky"}, "47": {"path": "Kosatik-Pavel_Ceske-okamziky", "local": false, "type": "book", "desc": "Pavel Kosat\u00edk: \u010cesk\u00e9 okam\u017eiky"}, "48": {"path": "Vondruska_Pripad-masopustnich-maskar", "local": false, "type": "book", "desc": "Vlastimil Vondru\u0161ka: P\u0159\u00edpad masopustn\u00edch ma\u0161kar"}, "49": {"path": "Skacel_Smutenka", "local": false, "type": "book", "desc": "Jan Sk\u00e1cel: Smut\u00e9nka"}, "50": {"path": "Hornicek_Saze-na-hrusce", "local": false, "type": "book", "desc": "Miroslav Horn\u00ed\u010dek: Saze na hru\u0161ce"}, "51": {"path": "Davouze_Dum-v-Bretani", "local": false, "type": "book", "desc": "Marta Dav\u016fz: D\u016fm v Bretani"}, "52": {"path": "Vondruska_Jmenem-krale", "local": false, "type": "book", "desc": "Vlastimil Vondru\u0161ka: Jm\u00e9nem kr\u00e1le"}, "53": {"path": "Bouckova_Silene-smutne-povidky", "local": false, "type": "book", "desc": "Tereza Bou\u010dkov\u00e1: \u0160\u00edlen\u011b smutn\u00e9 pov\u00eddky"}, "54": {"path": "Mayle_Rok-v-provance", "local": false, "type": "book", "desc": "P\u00edtr Mejl: Rok v prov\u00e1ns"}, "55": {"path": "Laclos_Nebezpecne-znamosti", "local": false, "type": "book", "desc": "Choderlos de Laklos: Nebezpe\u010dn\u00e9 zn\u00e1mosti"}, "56": {"path": "Potterova_Neni-prani-jako-prani", "local": false, "type": "book", "desc": "Potterova_Neni-prani-jako-prani"}, "57": {"path": "McDonaldova_Co-zivot-dal-a-vzal", "local": false, "type": "book", "desc": "McDonaldova_Co-zivot-dal-a-vzal"}, "59": {"path": "Karel-IV", "local": false, "type": "book", "desc": "Karel-IV"}, "61": {"path": "Chang-Divoke_labute", "local": false, "type": "book", "desc": "Chang-Divoke_labute"}, "62": {"path": "Giesbert-Franz-Olivier_Himmlerova-kucha\u0159ka", "local": false, "type": "book", "desc": "Giesbert-Franz-Olivier_Himmlerova-kucha\u0159ka"}, "63": {"path": "Werich_Cochtan_vypravuje", "local": false, "type": "book", "desc": "Werich_Cochtan_vypravuje"}, "64": {"path": "Devata_Jak-jsem-se-zblaznila", "local": false, "type": "book", "desc": "Devata_Jak-jsem-se-zblaznila"}}];
-
+    var json_recv2 = {"1000213E929D": {"item_id": 4, "hid": 2178706}, "0C008456904E": {"item_id": 3, "hid": 8672912}, "000000000000": {"item_id": 0, "hid": 0}, "1000577D003A": {"item_id": 9, "hid": 5733632}, "0E0015D004CF": {"item_id": 2, "hid": 1429508}, "0E008E8E9B95": {"item_id": 10, "hid": 9342619}, "0D002E72EBBA": {"item_id": 7, "hid": 3044075}, "0E002341026E": {"item_id": 5, "hid": 2310402}, "0D002E6DCE80": {"item_id": 6, "hid": 3042766}, "0E004D1887DC": {"item_id": 8, "hid": 5052551}, "0D002B720C58": {"item_id": 1, "hid": 2847244}, "0D002B720C5X": {"item_id": 99, "hid": 123456}};
+    
+    var ws_address = 'ws://192.168.88.59:8000';
+    var websocket = null;
     var itemList = json_recv[1];
-    var cardList = null;
+    var cardList = json_recv2;
+    var cardHidLookup = null; //id => hid
+    var cardIdLookup = null;  //hid => id
     var drake;
-    var dragData = {};
+    var tds = []; //all containers for dragula -- dragula does not work if the elements are not yet inserted into tree
+    var editData = null;
     var i = 0;
 
     function init()
     {
-        //doConnect();
-        //sendMessage("get_items", {});
-        //sendMessage("get_cards", {});
+        doConnect();
         document.getElementById("tst").onclick=buttonClicked
     }
 
@@ -68,6 +128,10 @@ table div {
     function onOpen(evt)
     {
         writeToScreen("Connected to server");
+        if(cardList == null) {
+            //sendMessage("get_items", {});
+            sendMessage("get_cards", {});
+        }
     }
 
     function onClose(evt)
@@ -94,17 +158,26 @@ table div {
 
     function onMessage(evt)
     {
-        var data_type = evt.data[1]
+        var data_type = evt.data[0];
         var data = evt.data[1];
         writeToScreen("Data from server received: " + data_type);
         if(data_type == 'items') {
             itemList = JSON.parse(data);
+            HandleCardsAndItems();
         }
         else if(data_type == 'cards') {
             cardList = JSON.parse(data);
+            HandleCardsAndItems();
         }
-        if((itemList != null) && (cardList != null)) {
-            MakeItemListTable();
+        else if(data_type == 'new_card') {
+            HandleNewCard(data);
+        }
+        else if(data_type == 'item_updated') {
+            HndleItemUpdate(data);
+        }
+        else {
+            writeToScreen("Error, I don't know how to handle this message");
+            Alarm(5);
         }
     }
 
@@ -113,6 +186,211 @@ table div {
         doSend(JSON.stringify([msg_type, data]), msg_type);
     }
 
+    function HandleCardsAndItems(data)
+    {
+        if((itemList != null) && (cardList != null)) {
+            MakeItemListTable();
+            MakeCardListTable();
+            MakeDrake();
+        }
+    }
+    
+    function HandleNewCard(data)
+    {
+        //cardList[data['rfid']] = {item_id: data['item_id'], hid: data['hid']};
+        cardHidLookup[data['item_id']] = { hid: data['hid'], used: false };
+        cardIdLookup[data['hid']] = data['item_id'];
+        var itemTable = document.getElementById("items_table");
+        var itemId = data['item_id'];
+        for(var row = itemTable.firstChild; row != null; row = row.nextSibling) {
+            var idDiv = row.firstChild.firstChild; // table -> tr -> td -> div
+            if(row.getAttribute("data-has_card") == "false") {
+                if(idDiv.getAttribute("data-item_id") == itemId) {
+                    idDiv.innerHTML = data['hid'];
+                    idDiv.className = 'has_card';
+                    cardHidLookup[itemId].used = true;
+                    row.setAttribute("data-has_card", true);
+                    writeToScreen("New card received (" + data['hid'] + "). It was assinged to " + row.children[1].innerHTML);
+                    break;
+                }
+            }
+        }
+        if(!cardHidLookup[itemId].used) {
+            var cardTable = document.getElementById("cards_table");
+            var cardTD = cardTable.appendChild(document.createElement("tr")).appendChild(document.createElement("td"));
+            var cardDiv = cardTD.appendChild(document.createElement("div"));
+            cardDiv.className = 'has_card';
+            cardDiv.innerHTML = data['hid'];
+            cardDiv.setAttribute("data-item_id", itemId);
+            drake.containers.push(cardTD);
+            writeToScreen("New card received (" + data['hid'] + ").");
+        }
+        Alarm(1);
+    }
+    
+    function HandleItemUpdate(data)
+    {
+        
+    }
+    
+    function CloseEdit(ta, oldText) 
+    {
+        var newText = ta.value;
+        var p = ta.parentElement;
+        p.innerHTML = newText;
+        p.addEventListener("click", EditTable)
+        editData = null;
+        if(newText !== oldText) {
+            NotifyServer(p);
+        }
+    }
+    
+    function CloseByClick(ev) 
+    {
+        if(editData == null) {
+            window.removeEventListener("click", CloseByClick);
+            return;
+        }
+        if((ev.target != editData[0]) && (ev.target != editData[0].parentElement)) {
+            CloseEdit.apply(null, editData);
+            window.removeEventListener("click", CloseByClick);
+        }
+    }
+        
+    function CloseByEnter(ev) 
+    {
+        var key = ev.which || ev.keyCode;
+        if (key === 13) {
+            CloseEdit.apply(null, editData);
+        }        
+    }
+    
+    function EditTable(ev)
+    {
+        if(editData != null) {
+            CloseEdit.apply(null, editData);
+        }
+        this.removeEventListener("click", EditTable)
+        var txt = this.innerText;
+        this.innerText = '';
+        var ta = this.appendChild(document.createElement("textarea"));
+        ta.innerHTML = txt;
+        editData = [ta, txt];
+        ta.addEventListener('keypress', CloseByEnter);
+        window.addEventListener("click", CloseByClick);
+        ta.focus();
+    }
+    
+    function NotifyServer(el)
+    {
+        var row = el.parentElement;
+        if(row.tagName == 'TD') {
+            row = row.parentElement;
+        }
+        if(row.parentElement.getAttribute("id") != "items_table") {
+            return;
+        }
+        //We have four possibilities:
+        // row(has_card) true/false, idEl(has_card) true/false
+        // when both are false, we need not to notify server
+        
+        var idEl = row.firstChild.firstChild;
+        var id = idEl.getAttribute("data-item_id");
+        var hid = "(no card)";
+        if(idEl.className.indexOf('has_card') > -1) {
+            row.setAttribute("data-has_card", true);
+            hid = cardHidLookup[id].hid;
+        } else {
+            if((row.getAttribute("data-has_card") == "false") && (el.tagName != "TD")) {
+                return;
+            }
+            row.setAttribute("data-has_card", false);
+        }
+        var path = row.childNodes[1].innerHTML;
+        var desc = row.childNodes[2].innerHTML;
+        writeToScreen("Updating item id " + id + "/" + hid + ", Path: " + path + ", Description: " + desc);
+        sendMessage("update_item", { 'id': id, 'path': path, 'desc': desc });
+    }
+
+    function MakeItemListTable()
+    {
+        //prepare lookup for cards
+        cardHidLookup = {}; //id => hid
+        cardIdLookup = {};  //hid => id
+        for(var rfid in cardList) {
+            cardIdLookup[cardList[rfid]['hid']] = cardList[rfid]['item_id'];
+            cardHidLookup[cardList[rfid]['item_id']] ={hid: cardList[rfid]['hid'], used: false};
+        }
+        //create table: tr -> [td -> div -> hid, td -> path, td -> desc]
+        var listDiv = document.getElementById("items")
+        var table = document.createElement("table")
+        table.setAttribute("id", "items_table");
+        for(var id in itemList) {
+            var rowData = itemList[id];
+            var elRow = document.createElement("tr");
+            elRow.setAttribute("data-has_card", false);
+            var elId = elRow.appendChild(document.createElement("td"));
+            var elIdDiv = elId.appendChild(document.createElement("div"));
+            elIdDiv.setAttribute("data-item_id", id);
+            if(id in cardHidLookup) {
+                elIdDiv.className = 'has_card';
+                elIdDiv.innerHTML = cardHidLookup[id].hid;
+                cardHidLookup[id].used = true
+                elRow.setAttribute("data-has_card", true);
+            } else {
+                elIdDiv.className = 'no_card';
+                //elIdDiv.innerHTML = id;
+            }
+            tds.push(elId);
+            var elPath = elRow.appendChild(document.createElement("td"));
+            elPath.innerHTML = rowData['path'];
+            var elDesc = elRow.appendChild(document.createElement("td"));
+            elDesc.innerHTML = rowData['desc'];
+            elDesc.addEventListener("click", EditTable);
+            table.appendChild(elRow);
+        }
+        listDiv.appendChild(table)
+    }
+    
+    function MakeCardListTable()
+    {
+        var listDiv = document.getElementById("cards");
+        var table = document.createElement("table");
+        table.setAttribute("id", "cards_table");
+        var nRows = 0;
+        for(var id in cardHidLookup) {
+            if(!cardHidLookup[id].used) {
+                var elRow = document.createElement("tr");
+                var elId = elRow.appendChild(document.createElement("td"));
+                var elIdDiv = elId.appendChild(document.createElement("div"));
+                elIdDiv.className = 'has_card';
+                elIdDiv.innerHTML = cardHidLookup[id].hid;
+                elIdDiv.setAttribute("data-item_id", id);
+                tds.push(elId);
+                table.appendChild(elRow);
+                nRows++;
+            }
+        }
+        if(nRows == 0) {
+            table.appendChild(document.createElement("tr")).appendChild(document.createElement("td")).innerHTML = "No free cards";
+        }
+        listDiv.appendChild(table)
+    }
+    
+    function MakeDrake()
+    {
+        drake = dragula(tds);
+        drake.on("drop", function(el, target, source, sibling) {
+            var prevId = target.firstChild;
+            if(prevId == el) {
+                prevId = sibling;
+            }
+            source.appendChild(prevId);
+            NotifyServer(el);
+            NotifyServer(prevId);
+        });        
+    }
+    
     function writeToScreen(message)
     {
         var log = document.getElementById("log");
@@ -123,31 +401,20 @@ table div {
         entry.innerHTML = message;
         log.insertBefore(entry, log.firstChild);
     }
-
-    function MakeItemListTable()
+    
+    function Alarm(n) 
     {
-        var listDiv = document.getElementById("list")
-        var table = document.createElement("table")
-        var tds = [];
-        for(var id in itemList) {
-            var rowData = itemList[id];
-            var elRow = document.createElement("tr");
-            var elId = elRow.appendChild(document.createElement("td"));
-            var elIdDiv = elId.appendChild(document.createElement("div"));
-            elIdDiv.innerHTML = id;
-            tds.push(elId);
-            var elPath = elRow.appendChild(document.createElement("td"));
-            elPath.innerHTML = rowData['path'];
-            var elDesc = elRow.appendChild(document.createElement("td"));
-            elDesc.innerHTML = rowData['desc'];
-            table.appendChild(elRow);
+        var body = document.getElementsByTagName("body")[0];
+        if(body.className == '') {
+            body.className = "alarm";
+        } else {
+            body.className = '';
         }
-        listDiv.appendChild(table)
-        drake = dragula(tds);
-        drake.on("drop", function(el, target, source, sibling) {
-            var prevId = target.firstChild;
-            source.appendChild(prevId); 
-        });
+        if(n > 0) {
+            setTimeout(() => {
+                Alarm(n - 1);
+            }, 100);            
+        }
     }
 
 	function buttonClicked()
@@ -155,6 +422,15 @@ table div {
         i++;
    	    writeToScreen('test ' + i);
    	    MakeItemListTable();
+        MakeCardListTable();
+        MakeDrake();
+        Alarm(1);
+        setTimeout(() => {
+            HandleNewCard({rfid: 'AAAAA', item_id: 999, hid: 100000})
+        }, 500);
+        setTimeout(() => {
+            HandleNewCard({rfid: 'BBBBB', item_id: 50, hid: 88888})
+        }, 1000);
     }
 
     window.addEventListener("load", init, false);
@@ -163,12 +439,13 @@ table div {
     </head>
     <body>
         <h2>RASPBERRY PI RFID READER</h2>
+        <div id="items" class="tables"><h3>List of all items (books, music, radio)</h3></div>
+        <div id="cards" class="tables"><h3>List of unassigned cards</h3></div>
+        <div id="log" style="width: 100%; height: 100px;"><p></p></div>
+        <button id="tst" onclick="buttonClicked()">Test</button>
         <p><a href="/reload">Reload items (mp3 list)</a></p>
         <p><a href="/reread">Reread the list of cards</a></p>
         <p><a href="/terminate">Terminate the main loop (you will need to restart the machine)</a></p>
-        <div id="list"></div>
-        <div id="log" style="width: 100px; height: 100px;"><p></p></div>
-        <button id="tst" onclick="buttonClicked()">Test</button>
         <div class="lastpos">
             {LastposTable}
         </div>

@@ -1,5 +1,17 @@
 #!/usr/bin/python
 
+"""
+TODO:
+[x] cardmap, read remote, update local
+[x] if new card scanned, create desc, update both local and global cardmap, send message to ws server
+[x] when item updated on web, update list.xml
+
+[ ] copy remote item to local when required
+[x] refactor read_items, just read the global list, if available, then check what is local
+[x] verify that the local copy matches the remote (check copying errors)
+[ ] updates from browser should be broadcast to other clients (or all clients and browser should recognize it as confirmation)
+"""
+
 import multiprocessing
 #from multiprocessing.managers import BaseManager
 import xml.etree.ElementTree as ET
@@ -25,8 +37,10 @@ class Dispatcher:
         self.list_file = list_file
         self.local_dir = local_dir
         self.remote_dir = remote_dir
+        self.remote_present = False
         self.tree = {}
-        self.items = {}
+        self.items = None
+        self.item_verification = None
         self.init_list()
         self.state = State.stopped
         self.time = 0
@@ -81,14 +95,20 @@ class Dispatcher:
         logging.warning('Terminating')
 
     def msg_rfid(self, msg):
-        logging.info("RFID message received, value: %s" % msg.value)
-        if (self.lastval != msg.value) or (self.state != State.playing):
-            if msg.value in self.items:
-                self.play_item(msg.value)
+        logging.info("RFID message received, action: %s, value: %s" % (msg.action, msg.value))
+        if msg.action == "scan":
+            if (self.lastval != msg.value) or (self.state != State.playing):
+                if msg.value in self.items:
+                    self.play_item(msg.value)
+                else:
+                    logging.error("RFID value not present in list of items")
             else:
-                logging.error("RFID value not present in list of items")
-        else:
-            logging.info("Ignoring accidental scan")
+                logging.info("Ignoring accidental scan")
+            return False
+        if msg.action == "new":
+            self.pipes['websocket_server'].send(('new_card', json.dumps({"item_id": msg.value, "hid": msg.hid})))
+            return False
+        logging.error("Unknown RFID action %s" % msg.action)
         return False
 
     def play_item(self, item_id):
@@ -163,10 +183,7 @@ class Dispatcher:
             self.pipes['websocket_server'].send(('broadcast', cmnd[1]))
         if msg.value == 'update_item':
             update_data = msg.payload
-            if update_data['id'] in self.items:
-                self.update_item(update_data['path'], update_data['id'], update_data['desc'], self.remote_dir)
-                if self.items[update_data['id']]['local']:
-                    self.update_item(update_data['path'], update_data['id'], update_data['desc'], self.local_dir)
+            self.update_item(update_data['path'], update_data['id'], update_data['desc'])
         return False
 
     def msg_unknown(self, msg):
@@ -197,9 +214,16 @@ class Dispatcher:
         conn.execute('update lastpos set position = ?, fileindex = ? where foldername = ?', (seek_time, file_index, folder_name))
         conn.commit()
 
-    def update_item(self, path, item_id, desc, data_dir):
+    def update_item(self, path, item_id, desc):
+        """
+        Actually, we choose the item by path, and update item_id!
+        :param path:
+        :param item_id:
+        :param desc:
+        :return:
+        """""
         logging.warning("Updating book info about item with path %s" % path)
-        root = self.tree[data_dir].getroot()
+        root = self.tree.getroot()
         books = [x for x in root if x.attrib['path'] == path]
         if len(books) > 1:
             logging.error("More than one book at path %s" % path)
@@ -207,119 +231,130 @@ class Dispatcher:
         if len(books) == 0:
             logging.error("Cannot find book at path %s" % path)
         book = books[0]
+        orig_id = int(book.attrib['id'])
+        self.items[item_id] = self.items[orig_id]
+        self.items[item_id]['desc'] = desc
         book.attrib['id'] = "%s" % item_id
         book.attrib['desc'] = desc
-        self.tree[data_dir].write(os.path.join(data_dir, self.list_file), encoding='UTF-8')
+        if self.remote_present:
+            self.tree.write(os.path.join(self.remote_dir, self.list_file), encoding='UTF-8')
+        self.tree.write(os.path.join(self.local_dir, self.list_file), encoding='UTF-8')
 
-    def add_item(self, path, item_id, data_dir):
+    def add_item(self, path, item_id):
         path = unicode(path, 'utf-8')
-        logging.warning("Adding path %s to items file in dir %s" % (path, data_dir))
-        self.tree[data_dir].getroot().append(ET.Element(tag='item', attrib={'id': "%s" % item_id, 'path': path, 'type': 'book', 'desc': path}))
-        self.tree[data_dir].write(os.path.join(data_dir, self.list_file), encoding='UTF-8')
+        logging.warning("Adding path %s to items file" % path)
+        self.items[item_id] = {'path': path, 'desc': path, type: 'book'}
+        self.tree.getroot().append(ET.Element(tag='item', attrib={'id': "%s" % item_id, 'path': path, 'type': 'book', 'desc': path}))
+        if self.remote_present:
+            self.tree.write(os.path.join(self.remote_dir, self.list_file), encoding='UTF-8')
+        self.tree.write(os.path.join(self.local_dir, self.list_file), encoding='UTF-8')
 
-    def check_list(self, data_dir, items):
+    def handle_verifications(self):
+        """
+        Now we only log errors, maybe once we shall copy files from remote to local
+        :return: None
+        """
+        for d in self.item_verification:
+            d_uni = unicode(d, encoding='utf-8')
+            for name in self.item_verification[d]:
+                name_uni = unicode(name, encoding='utf-8')
+                if 'error' in self.item_verification[d][name]:
+                    logger.error("Item checking error in dir %s, file %s: %s" % (d_uni, name_uni, self.item_verification[d][name]['error']))
+                else:
+                    if not self.item_verification[d][name]['verified']:
+                        logger.error("Size mismatch between local and remot in dir %s, file %s" % (d_uni, name_uni))
+
+    def check_list(self, data_dir):
+        """
+        Verify that the folders actually exist, contain mp3 files, add new directories to the list
+        When checking the remote dir, gather data about file sizes and then use it to verify the
+        local data.
+        :param data_dir: where to look
+        :return: None
+        """
+        is_remote = (data_dir == self.remote_dir)
         checklist = {}
-        for item_id in items:
-            if items[item_id]['type'] != 'radio':
-                checklist[items[item_id]['path']] = item_id
+        for item_id in self.items:
+            if self.items[item_id]['type'] != 'radio':
+                checklist[self.items[item_id]['path']] = item_id
         max_item_id = 0
-        if len(items) > 0:
-            max_item_id = max(items.keys()) + 1
+        if len(self.items) > 0:
+            max_item_id = max(self.items.keys()) + 1
         for d in os.listdir(data_dir):
+            if is_remote: # we shall be verifying the local dir later
+                self.item_verification[d] = {}
             dir_name = os.path.join(data_dir, d)
-            if os.path.isdir(dir_name):
-                files = os.listdir(dir_name)
-                mp3_found = False
-                for f in files:
-                    if os.path.isdir(os.path.join(dir_name, f)):
-                        logging.error("Item folder %s contains subdirectories." % d)
-                        break
-                    name, ext = os.path.splitext(f)
-                    if ext.lower() == '.mp3':
-                        mp3_found = True
-                        d = unicode(d, 'utf-8')
-                        if d in checklist:
-                            del checklist[d]
-                            break
-                        else:
-                            self.add_item(d, max_item_id, data_dir)
-                            max_item_id += 1
-                            break
-                if not mp3_found:
-                    logging.error("Subdirectory %s contains no mp3 files" % d)
+            if not os.path.isdir(dir_name): # this is true for logs and XML files in data dir
+                continue
+            files = os.listdir(dir_name)
+            mp3_found = False
+            for f in files:
+                if os.path.isdir(os.path.join(dir_name, f)):
+                    logging.error("Item folder %s contains subdirectories." % d)
+                    break
+                name, ext = os.path.splitext(f)
+                if ext.lower() == '.mp3':
+                    mp3_found = True
+                    if is_remote:
+                        self.item_verification[d][name] = {'size': os.path.getsize(f), 'verified': False}
+                    else:
+                        if self.item_verification is not None:
+                            if name in self.item_verification[d]:
+                                self.item_verification[d][name]['verified'] = (os.path.getsize(f) == self.item_verification[d][f]['size'])
+                            else:
+                                self.item_verification[d][name] = {'error': 'extra file on local'}
+            if mp3_found:
+                d_uni = unicode(d, 'utf-8')
+                if d_uni in checklist:
+                    del checklist[d_uni]
+                else:
+                    if is_remote or not self.remote_present:
+                        self.add_item(d_uni, max_item_id)
+                        max_item_id += 1
+                    else:
+                        logger.error("Local item not available on remote: %s" % d_uni)
+            else:
+                logging.error("Subdirectory %s contains no mp3 files" % d)
         for cl in checklist:
-            logging.error("Path %s present in item xml file, but not found on disk" % cl)
-            del items[checklist[cl]]
+            if is_remote or not self.remote_present:
+                logging.error("Path %s present in item xml file, but not found on disk" % cl)
+                del self.items[checklist[cl]]
+            else:
+                self.items[checklist[cl]]['local'] = False
 
     def read_list(self, data_dir):
-        items = {}
-        self.tree[data_dir] = ET.parse(os.path.join(data_dir, self.list_file))
-        itemmap = self.tree[data_dir].getroot()
+        self.tree = ET.parse(os.path.join(data_dir, self.list_file))
+        itemmap = self.tree.getroot()
         for item in itemmap:
             if False in [x in item.attrib for x in ['id', 'desc', 'type', 'path']] :
                 logging.error("Item does not have one of the required attributes")
                 continue
             item_id = int(item.attrib['id'])
-            items[item_id] = copy.deepcopy(item.attrib)
-            del items[item_id]['id']
-            #if items[item_id]['type'] != 'radio':
-            #   items[item_id]['path'] = os.path.join(data_dir, items[item_id]['path'])
+            self.items[item_id] = copy.deepcopy(item.attrib)
+            self.items[item_id]['local'] = True
+            del self.items[item_id]['id']
         logging.info('Items loaded from path %s' % data_dir)
-        self.check_list(data_dir, items)
-        return items
 
     def init_list(self):
-        items = {}
-        for k,v in {'local': self.local_dir, 'remote': self.remote_dir}.iteritems():
-            items[k] = self.read_list(v)
-        paths = {}
-        for p in ['local', 'remote']:
-            paths[p] = {items[p][k]['path']: k for k in items[p]}
-        self.items = {k: dict(items['local'][k], local=True) for k in items['local']}
+        """
+        Read and verify the remote item list if available. In this case, verify the local data with respect to the
+         remote, and mark items missing locally as remote. If remote item list is not available, read local data,
+         do local verification.
+        :return: None
+        """
+        self.items = {}
+        if os.path.exists(os.path.join(self.remote_dir, self.list_file)):
+            self.remote_present = True
+            self.item_verification = {}
+            self.read_list(self.remote_dir)
+            self.check_list(self.remote_dir)
+            self.check_list(self.local_dir)
+            self.handle_verifications()
+            self.tree.write(os.path.join(self.local_dir, self.list_file), encoding='UTF-8')
+        else:
+            self.read_list(self.local_dir)
+            self.check_list(self.local_dir)
 
-        """
-        if rem_path exists locally and rem_id == loc_id and all data match ==> OK
-        if rem_path exists locally and rem_id == loc_id and data do not match ==> update local xml with info from remote
-        if rem_path exists locally and rem_id != loc_id ==>
-            if rem_id is not occupied locally ==> update local xml file with info from remote
-            if rem_id is used locally ==> push local record to new id, update xml file
-        if rem_path does not exist locally =>
-            if rem_id is not occupied locally ==> add info about remote file
-            if rem_id is used locally ==> push local record to new id, update xml file
-        """
-        max_item_id = 1
-        if len(self.items) > 0:
-            max_item_id = max(self.items.keys()) + 1
-        for mp3_path in paths['remote']:
-            rem_id = paths['remote'][mp3_path]
-            if mp3_path in paths['local']:
-                loc_id = paths['local'][mp3_path]
-                if loc_id != rem_id:
-                    # we must check if the rem_id is already taken or not
-                    if rem_id in self.items:
-                        self.items[max_item_id] = self.items[rem_id]
-                        paths['local'][self.items[rem_id]['path']] = max_item_id
-                        max_item_id += 1
-                    self.items[rem_id] = self.items[loc_id]
-                    paths['local'][mp3_path] = rem_id
-                    del self.items[loc_id]
-            else:
-                if rem_id in self.items:
-                    # remote id is already taken
-                    self.items[max_item_id] = self.items[rem_id]
-                    paths['local'][self.items[rem_id]['path']] = max_item_id
-                    max_item_id += 1
-                self.items[rem_id] = dict(items['remote'][rem_id], local=False)
-        # now check all local info whether it was changed or not
-        old_local_paths = {items['local'][k]['path']: k for k in items['local']}
-        for mp3_path in paths['local']:
-            old_id = old_local_paths[mp3_path]
-            cur_id = paths['local'][mp3_path]
-            if cur_id != old_id or self.items[cur_id]['desc'] != items['local'][old_id]['desc']:
-                self.update_item(path=mp3_path, item_id=cur_id,
-                                 desc=self.items[cur_id]['desc'],
-                                 data_dir=self.local_dir)
-        # print "consolidated items", self.items
 
 if __name__ == "__main__":
     os.chdir(os.path.dirname(__file__))
