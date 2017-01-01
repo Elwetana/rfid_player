@@ -10,6 +10,7 @@ TODO:
 [x] refactor read_items, just read the global list, if available, then check what is local
 [x] verify that the local copy matches the remote (check copying errors)
 [ ] updates from browser should be broadcast to other clients (or all clients and browser should recognize it as confirmation)
+[ ] show current status (playing...), show if remote is available on web client
 """
 
 import multiprocessing
