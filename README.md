@@ -23,7 +23,7 @@ The schematics is in file schema.svg and schema.png in this folder.
 * libao: there is a bug in libao alsa plugin for current Raspbian (Wheezy). See this link: http://stackoverflow.com/questions/8963915/libao-example-doesnt-work-when-compiled-as-python-module
 * evdev: https://github.com/gvalkov/python-evdev
 * festival/festvox
-* pymad: https://github.com/jaqx0r/pymad
+* pymad: https://github.com/jaqx0r/pymad (NB: do not use pip for this, as there is another package called mad; clone jaqx0r's repository and run setup; do apt-get install libmad0-dev beforehand)
 
 ##Conclusion
 If you find this idea interesting to you, please drop me a line. Thank you.
