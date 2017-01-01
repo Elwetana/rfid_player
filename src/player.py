@@ -157,7 +157,6 @@ class Player(multiprocessing.Process):
             self.msg_queue.put(PlayerMsg('started', self.isRadio))
             while True:
                 buf = mf.read()
-                #print len(buf) #4608
                 if (buf is None) or self.pipe.poll():
                     if buf is None:
                         why_stopped = 'finished'
