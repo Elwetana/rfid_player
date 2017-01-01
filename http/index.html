@@ -71,6 +71,10 @@
                 margin: 0 2px;
                 padding: 0 3px;
             }
+            
+            table tr.remote td {
+                background-color: bisque;
+            }
 
             table div {
                 height: 20px;
@@ -111,7 +115,7 @@
     function init()
     {
         doConnect();
-        document.getElementById("tst").onclick=buttonClicked
+        //document.getElementById("tst").onclick=buttonClicked
     }
 
     function doConnect()
@@ -129,6 +133,7 @@
         if(cardList == null) {
             sendMessage("get_items", {});
             sendMessage("get_cards", {});
+            sendMessage("is_remote", {});
         }
     }
 
@@ -157,22 +162,33 @@
     function onMessage(evt)
     {
         var msg = JSON.parse(evt.data);
-        var data_type = msg[0];
+        var msg_type = msg[0];
         var data = msg[1];
-        writeToScreen("Data from server received: " + data_type);
-        if(data_type == 'items') {
+        writeToScreen("Data from server received: " + msg_type);
+        if(msg_type == 'items') {
             itemList = data;
             HandleCardsAndItems();
         }
-        else if(data_type == 'cards') {
+        else if(msg_type == 'cards') {
             cardList = data;
             HandleCardsAndItems();
         }
-        else if(data_type == 'new_card') {
+        else if(msg_type == 'new_card') {
             HandleNewCard(data);
         }
-        else if(data_type == 'item_updated') {
-            HndleItemUpdate(data);
+        else if(msg_type == 'item_updated') {
+            HandleItemUpdate(data);
+        }
+        else if(msg_type == 'has_remote') {
+            if(!data) {
+                var title = document.getElementById("title");
+                title.style.backgroundColor = "red";
+                title.innerHTML += "<br/>raspberry is not connected to network"
+            }
+        }
+        else if(msg_type == 'playing') {
+            Alarm(1);
+            writeToScreen("Player is playing");
         }
         else {
             writeToScreen("Error, I don't know how to handle this message");
@@ -332,6 +348,9 @@
         for(var id in itemList) {
             var rowData = itemList[id];
             var elRow = document.createElement("tr");
+            if(!rowData['local']) {
+                elRow.className = 'remote';
+            }
             elRow.setAttribute("data-has_card", false);
             var elId = elRow.appendChild(document.createElement("td"));
             var elIdDiv = elId.appendChild(document.createElement("div"));
@@ -447,11 +466,11 @@
 </script>
     </head>
     <body>
-        <h2>RASPBERRY PI RFID READER</h2>
+        <h2 id="title">RASPBERRY PI RFID READER</h2>
         <div id="items" class="tables"><h3>List of all items (books, music, radio)</h3></div>
         <div id="cards" class="tables"><h3>List of unassigned cards</h3></div>
-        <div id="log" style="width: 100%; height: 100px;"><p></p></div>
-        <button id="tst" onclick="buttonClicked()">Test</button>
+        <div id="log" style="width: 100%"><p></p></div>
+        <!-- button id="tst" onclick="buttonClicked()">Test</button -->
         <p><a href="/reload">Reload items (mp3 list)</a></p>
         <p><a href="/reread">Reread the list of cards</a></p>
         <p><a href="/terminate">Terminate the main loop (you will need to restart the machine)</a></p>
