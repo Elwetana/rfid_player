@@ -9,10 +9,11 @@ TODO:
 [ ] copy remote item to local when required
 [X] refactor read_items, just read the global list, if available, then check what is local
 [x] verify that the local copy matches the remote (check copying errors)
-[ ] updates from browser should be broadcast to other clients (or all clients and browser should recognize it as confirmation)
-[ ] show current status (playing...), show if remote is available on web client
-[ ] show local/remote status for files in browser
-[ ] update last seen data
+[.] updates from browser should be broadcast to other clients (or all clients and browser should recognize it as confirmation)
+[x] show current status (playing...), show if remote is available on web client
+[x] show local/remote status for files in browser
+[X] update last seen data
+[ ] show last_seen value from player.db on the main table
 """
 
 import multiprocessing
@@ -117,14 +118,18 @@ class Dispatcher:
     def play_item(self, item_id):
         self.time = time.time()
         self.state = State.playing
-        item_path = os.path.join(self.local_dir, self.items[item_id]['path'])
+        root_folder = self.local_dir
         if not self.items[item_id]['local']:
             if self.remote_present:
-                item_path = os.path.join(self.remote_dir, self.items[item_id]['path'])
+                root_folder = self.remote_dir
             else:
-                item_item = 'NOT_LOCAL'
-        item = { 'path': item_path, 'desc': self.items[item_id]['desc'], 'type': self.items[item_id]['type'] }
+                root_folder = 'NOT_LOCAL'
+        item = {'path': self.items[item_id]['path'],
+                'desc': self.items[item_id]['desc'],
+                'type': self.items[item_id]['type'],
+                'root': root_folder}
         self.pipes['player'].send(('start',item))
+        self.pipes['websocket_server'].send(('broadcast', json.dumps(['playing', item_id])))
         self.lastval = item_id
 
     def msg_keys(self, msg):
@@ -194,6 +199,8 @@ class Dispatcher:
         if msg.value == 'update_item':
             update_data = msg.payload
             self.update_item(update_data['path'], update_data['id'], update_data['desc'])
+        if msg.value == 'is_remote':
+            self.pipes['websocket_server'].send(('broadcast', json.dumps(['has_remote', self.remote_present])))
         return False
 
     def msg_unknown(self, msg):
@@ -258,6 +265,7 @@ class Dispatcher:
         self.items[item_id] = {'desc': desc, 'path': path, type: book.attrib['type']}
         if orig_id != item_id:
             del self.items[orig_id]
+        self.pipes['websocket_server'].send(('broadcast', json.dumps(['item_updated', self.items[item_id]])))
 
     def add_item(self, path, item_id):
         path = unicode(path, 'utf-8')
@@ -374,7 +382,9 @@ class Dispatcher:
             self.remote_present = True
             self.item_verification = {}
             self.read_list(self.remote_dir)
+            logger.debug("Starting remote verification")
             self.check_list(self.remote_dir)
+            logger.debug("Starting local verification")
             self.check_list(self.local_dir)
             self.handle_verifications()
             self.tree.write(os.path.join(self.local_dir, self.list_file), encoding='UTF-8')

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
-    configRoot = '/opt/rp_play/http'
+    configRoot = '../http'
     msgMap = {
             '/terminate': 'terminate',
             '/reload':    'reload_items',
