@@ -1,6 +1,476 @@
 <html>
+    <head>
+        <meta charset="utf-8" />
+        <title>RFID reader configuration</title>
+        <script src='https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.2/dragula.min.js'></script>
+        <style>
+            .gu-mirror {
+                position: fixed !important;
+                margin: 0 !important;
+                z-index: 9999 !important;
+                opacity: 0.8;
+                -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=80)";
+                filter: alpha(opacity=80);
+            }
+            
+            .gu-hide {
+                display: none !important;
+            }
+            
+            .gu-unselectable {
+                -webkit-user-select: none !important;
+                -moz-user-select: none !important;
+                -ms-user-select: none !important;
+                user-select: none !important;
+            }
+
+            .gu-transit {
+                opacity: 0.2;
+                -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=20)";
+                filter: alpha(opacity=20);
+            }
+            
+            /*---------------------------------------------------------------------------------------------*/
+            
+            .alarm {
+                background-color: red;
+            }
+            
+            h2 {
+                font-family: Corbel;
+                font-size: 16pt;
+                font-weight: bold;
+                margin-bottom: 6px;
+                text-align: center;
+            }
+            
+            h3 {
+                font-family: Corbel;
+                font-size: 14pt;
+                font-weight: bold;
+                margin-bottom: 6px;
+            }
+            
+            div#log p {
+                margin: 0;
+                font-family: sans-serif;
+                font-size: 10pt;
+            }
+            
+            div.tables {
+                width: 900px;
+                margin: 0 auto;
+            }
+            
+            table {
+                font-family: Calibri, sans-serif;
+                font-size: 12pt;
+            }
+            
+            table td {
+                margin: 0 2px;
+                padding: 0 3px;
+            }
+            
+            table tr.remote td {
+                background-color: bisque;
+            }
+
+            table div {
+                height: 20px;
+                width: 80px;
+                margin: 2px;
+                text-align: center;
+            }
+            
+            table div.has_card {
+                background-color: chartreuse;
+            }
+            
+            table div.no_card {
+                background-color: orangered;
+            }
+            
+            table textarea {
+                width: 400px;
+                height: 20px;
+                resize: horizontal;
+                font-family: Calibri, sans-serif;
+                font-size: 12pt;
+            }
+        </style>
+<script language="javascript" type="text/javascript">
+    
+    var ws_address = 'ws://192.168.88.59:8000';
+    var websocket = null;
+    var itemList = null;
+    var cardList = null;
+    var cardHidLookup = null; //id => hid
+    var cardIdLookup = null;  //hid => id
+    var drake;
+    var tds = []; //all containers for dragula -- dragula does not work if the elements are not yet inserted into tree
+    var editData = null;
+    var i = 0;
+
+    function init()
+    {
+        doConnect();
+        //document.getElementById("tst").onclick=buttonClicked
+    }
+
+    function doConnect()
+    {
+        websocket = new WebSocket(ws_address);
+        websocket.onopen = function(evt) { onOpen(evt) };
+        websocket.onclose = function(evt) { onClose(evt) };
+        websocket.onmessage = function(evt) { onMessage(evt) };
+        websocket.onerror = function(evt) { onError(evt) };
+    }
+
+    function onOpen(evt)
+    {
+        writeToScreen("Connected to server");
+        if(cardList == null) {
+            sendMessage("get_items", {});
+            sendMessage("get_cards", {});
+            sendMessage("is_remote", {});
+        }
+    }
+
+    function onClose(evt)
+    {
+        writeToScreen("Disconnected from server");
+    }
+
+    function onError(evt)
+    {
+        writeToScreen('Error: ' + evt.data);
+        websocket.close();
+    }
+
+    function doSend(message, msg_type)
+    {
+        writeToScreen("Sent message to server " + msg_type);
+        websocket.send(message);
+    }
+
+    function doDisconnect()
+    {
+        websocket.close();
+    }
+
+    function onMessage(evt)
+    {
+        var msg = JSON.parse(evt.data);
+        var msg_type = msg[0];
+        var data = msg[1];
+        writeToScreen("Data from server received: " + msg_type);
+        if(msg_type == 'items') {
+            itemList = data;
+            HandleCardsAndItems();
+        }
+        else if(msg_type == 'cards') {
+            cardList = data;
+            HandleCardsAndItems();
+        }
+        else if(msg_type == 'new_card') {
+            HandleNewCard(data);
+        }
+        else if(msg_type == 'item_updated') {
+            HandleItemUpdate(data);
+        }
+        else if(msg_type == 'has_remote') {
+            if(!data) {
+                var title = document.getElementById("title");
+                title.style.backgroundColor = "red";
+                title.innerHTML += "<br/>raspberry is not connected to network"
+            }
+        }
+        else if(msg_type == 'playing') {
+            Alarm(1);
+            writeToScreen("Player is playing");
+        }
+        else {
+            writeToScreen("Error, I don't know how to handle this message");
+            Alarm(5);
+        }
+    }
+
+    function sendMessage(msg_type, data)
+    {
+        doSend(JSON.stringify([msg_type, data]), msg_type);
+    }
+
+    function HandleCardsAndItems(data)
+    {
+        if((itemList != null) && (cardList != null)) {
+            MakeItemListTable();
+            MakeCardListTable();
+            MakeDrake();
+        }
+    }
+    
+    function HandleNewCard(data)
+    {
+        //cardList[data['rfid']] = {item_id: data['item_id'], hid: data['hid']};
+        cardHidLookup[data['item_id']] = { hid: data['hid'], used: false };
+        cardIdLookup[data['hid']] = data['item_id'];
+        var itemTable = document.getElementById("items_table");
+        var itemId = data['item_id'];
+        for(var row = itemTable.firstChild; row != null; row = row.nextSibling) {
+            var idDiv = row.firstChild.firstChild; // table -> tr -> td -> div
+            if(row.getAttribute("data-has_card") == "false") {
+                if(idDiv.getAttribute("data-item_id") == itemId) {
+                    idDiv.innerHTML = data['hid'];
+                    idDiv.className = 'has_card';
+                    cardHidLookup[itemId].used = true;
+                    row.setAttribute("data-has_card", true);
+                    writeToScreen("New card received (" + data['hid'] + "). It was assinged to " + row.children[1].innerHTML);
+                    break;
+                }
+            }
+        }
+        if(!cardHidLookup[itemId].used) {
+            var cardTable = document.getElementById("cards_table");
+            var cardTD = cardTable.appendChild(document.createElement("tr")).appendChild(document.createElement("td"));
+            var cardDiv = cardTD.appendChild(document.createElement("div"));
+            cardDiv.className = 'has_card';
+            cardDiv.innerHTML = data['hid'];
+            cardDiv.setAttribute("data-item_id", itemId);
+            drake.containers.push(cardTD);
+            writeToScreen("New card received (" + data['hid'] + ").");
+        }
+        Alarm(1);
+    }
+    
+    function HandleItemUpdate(data)
+    {
+        
+    }
+    
+    function CloseEdit(ta, oldText) 
+    {
+        var newText = ta.value;
+        var p = ta.parentElement;
+        p.innerHTML = newText;
+        p.addEventListener("click", EditTable)
+        editData = null;
+        if(newText !== oldText) {
+            NotifyServer(p);
+        }
+    }
+    
+    function CloseByClick(ev) 
+    {
+        if(editData == null) {
+            window.removeEventListener("click", CloseByClick);
+            return;
+        }
+        if((ev.target != editData[0]) && (ev.target != editData[0].parentElement)) {
+            CloseEdit.apply(null, editData);
+            window.removeEventListener("click", CloseByClick);
+        }
+    }
+        
+    function CloseByEnter(ev) 
+    {
+        var key = ev.which || ev.keyCode;
+        if (key === 13) {
+            CloseEdit.apply(null, editData);
+        }        
+    }
+    
+    function EditTable(ev)
+    {
+        if(editData != null) {
+            CloseEdit.apply(null, editData);
+        }
+        this.removeEventListener("click", EditTable)
+        var txt = this.innerText;
+        this.innerText = '';
+        var ta = this.appendChild(document.createElement("textarea"));
+        ta.innerHTML = txt;
+        editData = [ta, txt];
+        ta.addEventListener('keypress', CloseByEnter);
+        window.addEventListener("click", CloseByClick);
+        ta.focus();
+    }
+    
+    function NotifyServer(el)
+    {
+        var row = el.parentElement;
+        if(row.tagName == 'TD') {
+            row = row.parentElement;
+        }
+        if(row.parentElement.getAttribute("id") != "items_table") {
+            return;
+        }
+        //We have four possibilities:
+        // row(has_card) true/false, idEl(has_card) true/false
+        // when both are false, we need not to notify server
+        
+        var idEl = row.firstChild.firstChild;
+        var id = idEl.getAttribute("data-item_id");
+        var hid = "(no card)";
+        if(idEl.className.indexOf('has_card') > -1) {
+            row.setAttribute("data-has_card", true);
+            hid = cardHidLookup[id].hid;
+        } else {
+            if((row.getAttribute("data-has_card") == "false") && (el.tagName != "TD")) {
+                return;
+            }
+            row.setAttribute("data-has_card", false);
+        }
+        var path = row.childNodes[1].innerHTML;
+        var desc = row.childNodes[2].innerHTML;
+        writeToScreen("Updating item id " + id + "/" + hid + ", Path: " + path + ", Description: " + desc);
+        sendMessage("update_item", { 'id': id, 'path': path, 'desc': desc });
+    }
+
+    function MakeItemListTable()
+    {
+        //prepare lookup for cards
+        cardHidLookup = {}; //id => hid
+        cardIdLookup = {};  //hid => id
+        for(var rfid in cardList) {
+            cardIdLookup[cardList[rfid]['hid']] = cardList[rfid]['item_id'];
+            cardHidLookup[cardList[rfid]['item_id']] ={hid: cardList[rfid]['hid'], used: false};
+        }
+        //create table: tr -> [td -> div -> hid, td -> path, td -> desc]
+        var listDiv = document.getElementById("items")
+        //delete existing table if any
+        var table = document.getElementById("items_table")
+        if(table) {
+            table.parentElement.removeChild(table)
+        }
+        var table = document.createElement("table")
+        table.setAttribute("id", "items_table");
+        for(var id in itemList) {
+            var rowData = itemList[id];
+            var elRow = document.createElement("tr");
+            if(!rowData['local']) {
+                elRow.className = 'remote';
+            }
+            elRow.setAttribute("data-has_card", false);
+            var elId = elRow.appendChild(document.createElement("td"));
+            var elIdDiv = elId.appendChild(document.createElement("div"));
+            elIdDiv.setAttribute("data-item_id", id);
+            if(id in cardHidLookup) {
+                elIdDiv.className = 'has_card';
+                elIdDiv.innerHTML = cardHidLookup[id].hid;
+                cardHidLookup[id].used = true
+                elRow.setAttribute("data-has_card", true);
+            } else {
+                elIdDiv.className = 'no_card';
+                //elIdDiv.innerHTML = id;
+            }
+            tds.push(elId);
+            var elPath = elRow.appendChild(document.createElement("td"));
+            elPath.innerHTML = rowData['path'];
+            var elDesc = elRow.appendChild(document.createElement("td"));
+            elDesc.innerHTML = rowData['desc'];
+            elDesc.addEventListener("click", EditTable);
+            table.appendChild(elRow);
+        }
+        listDiv.appendChild(table)
+    }
+    
+    function MakeCardListTable()
+    {
+        //delete existing table if any
+        var table = document.getElementById("cards_table")
+        if(table) {
+            table.parentElement.removeChild(table)
+        }
+        var listDiv = document.getElementById("cards");
+        var table = document.createElement("table");
+        table.setAttribute("id", "cards_table");
+        var nRows = 0;
+        for(var id in cardHidLookup) {
+            if(!cardHidLookup[id].used) {
+                var elRow = document.createElement("tr");
+                var elId = elRow.appendChild(document.createElement("td"));
+                var elIdDiv = elId.appendChild(document.createElement("div"));
+                elIdDiv.className = 'has_card';
+                elIdDiv.innerHTML = cardHidLookup[id].hid;
+                elIdDiv.setAttribute("data-item_id", id);
+                tds.push(elId);
+                table.appendChild(elRow);
+                nRows++;
+            }
+        }
+        if(nRows == 0) {
+            table.appendChild(document.createElement("tr")).appendChild(document.createElement("td")).innerHTML = "No free cards";
+        }
+        listDiv.appendChild(table)
+    }
+    
+    function MakeDrake()
+    {
+        drake = dragula(tds);
+        drake.on("drop", function(el, target, source, sibling) {
+            var prevId = target.firstChild;
+            if(prevId == el) {
+                prevId = sibling;
+            }
+            source.appendChild(prevId);
+            NotifyServer(el);
+            NotifyServer(prevId);
+        });        
+    }
+    
+    function writeToScreen(message)
+    {
+        var log = document.getElementById("log");
+        while(log.children.length > 6) {
+        		log.children[log.children.length - 1].remove();
+        }
+        var entry = document.createElement("p");
+        entry.innerHTML = message;
+        log.insertBefore(entry, log.firstChild);
+    }
+    
+    function Alarm(n) 
+    {
+        var body = document.getElementsByTagName("body")[0];
+        if(body.className == '') {
+            body.className = "alarm";
+        } else {
+            body.className = '';
+        }
+        if(n > 0) {
+            setTimeout(() => {
+                Alarm(n - 1);
+            }, 100);            
+        }
+    }
+
+	function buttonClicked()
+    {
+        i++;
+   	    writeToScreen('test ' + i);
+   	    MakeItemListTable();
+        MakeCardListTable();
+        MakeDrake();
+        Alarm(1);
+        setTimeout(() => {
+            HandleNewCard({rfid: 'AAAAA', item_id: 999, hid: 100000})
+        }, 500);
+        setTimeout(() => {
+            HandleNewCard({rfid: 'BBBBB', item_id: 50, hid: 88888})
+        }, 1000);
+    }
+
+    window.addEventListener("load", init, false);
+
+</script>
+    </head>
     <body>
-        <h2>RASPBERRY PI RFID READER</h2>
+        <h2 id="title">RASPBERRY PI RFID READER</h2>
+        <div id="items" class="tables"><h3>List of all items (books, music, radio)</h3></div>
+        <div id="cards" class="tables"><h3>List of unassigned cards</h3></div>
+        <div id="log" style="width: 100%"><p></p></div>
+        <!-- button id="tst" onclick="buttonClicked()">Test</button -->
         <p><a href="/reload">Reload items (mp3 list)</a></p>
         <p><a href="/reread">Reread the list of cards</a></p>
         <p><a href="/terminate">Terminate the main loop (you will need to restart the machine)</a></p>

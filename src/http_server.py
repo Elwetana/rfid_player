@@ -2,31 +2,24 @@
 
 import sys
 import multiprocessing
-import SocketServer
 import BaseHTTPServer
 import logging
 import sqlite3
 import os
-from message import Msg
+from message import HttpMsg
 
-logger = logging.getLogger("root.reader")
+logger = logging.getLogger(__name__)
 
-class HttpMsg(Msg):
-
-    def __init__(self, http_data):
-        self.msg_type = 'http'
-        self.value = http_data
-        self.needs_ack = True
 
 class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
-    configRoot = '/opt/rp_play/http'
+    configRoot = '../http'
     msgMap = {
-            '/terminate' : 'terminate',
-            '/reload' : 'reload_items',
-            '/reread' : 'reread_cards'
+            '/terminate': 'terminate',
+            '/reload':    'reload_items',
+            '/reread':    'reread_cards'
             }
-    
+
     def do_GET(self):
         self.send_response(200)
         self.send_header('Content-Type', 'text/html')
@@ -37,7 +30,7 @@ class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         f = open(HttpHandler.configRoot + self.path)
         html = f.read()
         f.close()
-        #replace the 'template tag' {LastposTable} with table data
+        # replace the 'template tag' {LastposTable} with table data
         html = html.replace('{LastposTable}', self.getLastposTable())
         self.wfile.write(html)
 
@@ -50,11 +43,13 @@ class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         for row in rows.fetchall():
             try:
                 files = os.listdir(os.path.join(self.configRoot, row[0]))
-            except OSError: #this happens when the book was deleted
+            except OSError:  # this happens when the book was deleted
                 continue
-            html += '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n' % (row[0][7:], row[1], row[2], row[3], len(files))
+            html += '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n' % \
+                    (row[0][7:], row[1], row[2], row[3], len(files))
         html += '</table>\n'
         return html
+
 
 class HttpServer(multiprocessing.Process):
 
@@ -65,12 +60,13 @@ class HttpServer(multiprocessing.Process):
         multiprocessing.Process.__init__(self)
         self.pipe = pipe
         self.msg_queue = msg_queue
+        self.server = None
 
     def run(self):
-        self.server = BaseHTTPServer.HTTPServer(('',HttpServer.serverPort), HttpHandler)
+        self.server = BaseHTTPServer.HTTPServer(('', HttpServer.serverPort), HttpHandler)
         self.server.timeout = HttpServer.timeout
         self.server.msg_queue = self.msg_queue
-
+        logger.warning("HTTP server running")
         try:
             while True:
                 self.server.handle_request()
@@ -79,7 +75,6 @@ class HttpServer(multiprocessing.Process):
                     if cmnd[0] == 'quit':
                         break
         except:
-            #logger.error("error: %s" % sys.exc_info())
             print sys.exc_info()
 
         logger.warning("HTTP server terminating")
@@ -93,5 +88,5 @@ if __name__ == "__main__":
     server.start()
     while True:
         msg = msg_queue.get()
-        print msg.value
+        print "Received message from server:", msg.value
 

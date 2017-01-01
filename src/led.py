@@ -5,7 +5,7 @@ import RPi.GPIO as GPIO
 import os, time
 import logging
 
-logger = logging.getLogger("root.led")
+logger = logging.getLogger(__name__)
 
 class LedControl(multiprocessing.Process):
 
@@ -21,6 +21,7 @@ class LedControl(multiprocessing.Process):
         self.stop_led()
         self.is_playing = ''
         self.play_on = False
+        logger.warning("Led controller running")
         while True:
             if self.pipe.poll(self.blink_interval):
                 logger.info("led message received")

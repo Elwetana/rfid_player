@@ -8,7 +8,7 @@ from select import select
 import xml.etree.ElementTree as ET
 import logging
 
-logger = logging.getLogger("root.keyinput")
+logger = logging.getLogger(__name__)
 
 class KeyMsg(Msg):
 
@@ -38,7 +38,7 @@ class KeyListener(multiprocessing.Process):
         self.devices = {dev.fd: dev for dev in devices}
 
     def run(self):
-        logger.warning("Listener running")
+        logger.warning("Key listener running")
         while True:
             r,w,x = select(self.devices, [], [])
             for fd in r:

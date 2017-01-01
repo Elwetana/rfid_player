@@ -3,11 +3,12 @@ import multiprocessing
 from message import Msg
 import mad, ao, sys
 import sqlite3, os, subprocess, socket
+import os.path
 import xml.etree.ElementTree as ET
 import logging
 import urlparse
 
-logger = logging.getLogger("root.player")
+logger = logging.getLogger(__name__)
 
 class PlayerMsg(Msg):
 
@@ -36,6 +37,7 @@ class Player(multiprocessing.Process):
         self.fest = socket.socket()
         self.fest.connect(('localhost',1314))
         self.folder_name = ''
+        logger.warning("Player running")
         while True:
             if self.pipe.poll(None):
                 cmnd = self.pipe.recv()
@@ -43,6 +45,7 @@ class Player(multiprocessing.Process):
                     self.folder_name = cmnd[1]['path']
                     self.entity_type = cmnd[1]['type']
                     self.entity_desc = cmnd[1]['desc']
+                    self.root_folder = cmnd[1]['root']
                     self.isRadio = (self.entity_type == 'radio')
                     self.set_seek_time()
                     self.play()
@@ -92,12 +95,14 @@ class Player(multiprocessing.Process):
         seek_time = 0
         if row is None:
             logger.warning('creating record for %s in lastpos database' % self.folder_name)
-            with conn:
-                conn.execute('insert into lastpos (foldername, fileindex, position, completed) values (?, ?, ?, ?)', (self.folder_name, 0, 0, 0))
+            conn.execute('insert into lastpos (foldername, fileindex, position, completed) values (?, ?, ?, ?)', (self.folder_name, 0, 0, 0))
         else:
             file_index = row[1]
             seek_time = row[2]
             logger.warning('Resuming file %s in %s from %s' % (file_index, self.folder_name, seek_time))
+        logger.debug('Updating last_seen')
+        conn.execute('update lastpos set last_seen = CURRENT_TIMESTAMP;')
+        conn.commit()
         self.seek_time, self.file_index = seek_time, file_index
         return True
 
@@ -123,19 +128,19 @@ class Player(multiprocessing.Process):
             self.file_index = len(files) - 1
         if self.file_index < 0: #this happens when prev is pressed too many times
             self.file_index = 0
-        f = os.path.join(self.folder_name, files[self.file_index])
+        f = os.path.join(self.root_folder, self.folder_name, files[self.file_index])
         logger.info("Audio file to be played: %s" % f)
         return f
 
-    def get_files(self, folder_name):
+    def get_files(self):
         if self.isRadio:
             return ['']
-        files = os.listdir(folder_name)
+        files = os.listdir(os.path.join(self.root_folder, self.folder_name))
         files.sort()
         return files
 
     def play(self, do_speak = True):
-        files = self.get_files(self.folder_name)
+        files = self.get_files()
         if do_speak:
             self.speak(self.seek_time, self.file_index)
         why_stopped = 'finished'
@@ -156,7 +161,6 @@ class Player(multiprocessing.Process):
             self.msg_queue.put(PlayerMsg('started', self.isRadio))
             while True:
                 buf = mf.read()
-                #print len(buf) #4608
                 if (buf is None) or self.pipe.poll():
                     if buf is None:
                         why_stopped = 'finished'
