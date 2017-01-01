@@ -397,7 +397,7 @@ if __name__ == "__main__":
     os.chdir(os.path.dirname(__file__))
     ##logging.config.fileConfig('logging.conf')
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s: %(message)s',
-                        filename='../data/main.log', level=logging.DEBUG)
+                        filename='../data/main.log', level=logging.WARNING)
     #logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.error("====================== START ===========================")
@@ -405,8 +405,8 @@ if __name__ == "__main__":
     ferr = open('../data/stderr.log', 'a')
     fout.write("---------------------------------------\n**** %s\n" % time.asctime())
     ferr.write("---------------------------------------\n**** %s\n" % time.asctime())
-    #sys.stdout = fout
-    #sys.stderr = ferr
+    sys.stdout = fout
+    sys.stderr = ferr
     print 'Starting'
     dispatcher = Dispatcher()
     dispatcher.start()
