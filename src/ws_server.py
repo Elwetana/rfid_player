@@ -592,14 +592,16 @@ class WebSocketServer(multiprocessing.Process):
     def run(self):
         logger.warning("WebSocketServer running")
         while True:
+            # logger.debug(".")
             if self.pipe.poll():
                 cmnd = self.pipe.recv()
+                logger.debug("Message received: %s" % cmnd[0])
                 if cmnd[0] == 'quit':
                     break
                 if cmnd[0] == 'broadcast':
+                    message = unicode(cmnd[1])
+                    logger.info('Broadcast request for %s' % message)
                     for fileno in self.connections:
-                        message = unicode(cmnd[1])
-                        print 'Broadcast request for', message, type(message)
                         self.connections[fileno].broadcast(message)
 
             writers = []
