@@ -174,7 +174,7 @@ class Dispatcher:
             return True
         if msg.value == 'reload_items':
             logger.info("Reloading the item list")
-            self.read_list()
+            self.init_list()
         if msg.value == 'reread_cards':
             logger.info("Rereading cards")
             self.pipes['rfid_reader'].send(('reread',0))
@@ -262,15 +262,16 @@ class Dispatcher:
             logger.error("Error findng this item in self.items")
             return
         orig_id = item[0]
-        self.items[item_id] = {'desc': desc, 'path': path, type: book.attrib['type']}
+        self.items[item_id] = {'desc': desc, 'path': path,'type': book.attrib['type']}
         if orig_id != item_id:
             del self.items[orig_id]
-        self.pipes['websocket_server'].send(('broadcast', json.dumps(['item_updated', self.items[item_id]])))
+        # TODO: gives Keys must be string erorr
+        # self.pipes['websocket_server'].send(('broadcast', json.dumps(['item_updated', self.items[item_id]])))
 
     def add_item(self, path, item_id):
-        path = unicode(path, 'utf-8')
+        # path = unicode(path, 'utf-8')
         logger.warning("Adding path %s to items file" % path)
-        self.items[item_id] = {'path': path, 'desc': path, type: 'book'}
+        self.items[item_id] = {'path': path, 'desc': path, 'type': 'book'}
         self.tree.getroot().append(ET.Element(tag='item', attrib={'id': "%s" % item_id, 'path': path, 'type': 'book', 'desc': path}))
         if self.remote_present:
             self.tree.write(os.path.join(self.remote_dir, self.list_file), encoding='UTF-8')
@@ -304,8 +305,11 @@ class Dispatcher:
         is_remote = (data_dir == self.remote_dir)
         checklist = {}
         for item_id in self.items:
-            if self.items[item_id]['type'] != 'radio':
-                checklist[self.items[item_id]['path']] = item_id
+            try:
+                if self.items[item_id]['type'] != 'radio':
+                    checklist[self.items[item_id]['path']] = item_id
+            except:
+                logger.error("Item %s does not contain type?" % item_id)
         max_item_id = 0
         if len(self.items) > 0:
             max_item_id = max(self.items.keys()) + 1
@@ -360,14 +364,19 @@ class Dispatcher:
     def read_list(self, data_dir):
         self.tree = ET.parse(os.path.join(data_dir, self.list_file))
         itemmap = self.tree.getroot()
+        path_check = []
         for item in itemmap:
             if False in [x in item.attrib for x in ['id', 'desc', 'type', 'path']] :
                 logger.error("Item does not have one of the required attributes")
+                continue
+            if item.attrib['path'] in path_check:
+                logger.error("Path referenced twice in the list of items: %s: " % item.attrib['path'])
                 continue
             item_id = int(item.attrib['id'])
             self.items[item_id] = copy.deepcopy(item.attrib)
             self.items[item_id]['local'] = True
             del self.items[item_id]['id']
+            path_check.append(item.attrib['path'])
         logger.info('Items loaded from path %s' % data_dir)
 
     def init_list(self):
@@ -405,8 +414,8 @@ if __name__ == "__main__":
     ferr = open('../data/stderr.log', 'a')
     fout.write("---------------------------------------\n**** %s\n" % time.asctime())
     ferr.write("---------------------------------------\n**** %s\n" % time.asctime())
-    sys.stdout = fout
-    sys.stderr = ferr
+    #sys.stdout = fout
+    #sys.stderr = ferr
     print 'Starting'
     dispatcher = Dispatcher()
     dispatcher.start()
