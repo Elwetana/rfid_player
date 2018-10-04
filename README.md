@@ -12,6 +12,8 @@ The person using the device simply selects the tag that he wants to listen to, s
 
 I got a simple air mouse on DX.com and I am using it as a sort of remote control: the listener can use it to skip tracks, move forward or backward, control volume, stop the player or turn it off.
 
+The program also runs a simple HTTP server that can be accessed from another computer and used to manage data: add or remove books and cards.
+
 ##Schematics
 
 The wiring is very simple. RDM630 RFID reader is connected to pin 10 (RxD). Three pins control LEDs that indicate function: two LEDs indicate playing/standing (one for radio, other for locally accessed playback), one indicates input (scanning a card, pressing a key on controller), one is always on power indicator.
