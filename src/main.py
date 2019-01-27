@@ -101,6 +101,7 @@ class Dispatcher:
     def msg_rfid(self, msg):
         logger.info("RFID message received, action: %s, value: %s" % (msg.action, msg.value))
         if msg.action == "scan":
+            self.pipes['websocket_server'].send(('broadcast', json.dumps(['scan_card', {"item_id": msg.value, "hid": msg.hid}])))
             if (self.lastval != msg.value) or (self.state != State.playing):
                 if msg.value in self.items:
                     self.play_item(msg.value)
@@ -129,7 +130,8 @@ class Dispatcher:
                 'type': self.items[item_id]['type'],
                 'root': root_folder}
         self.pipes['player'].send(('start',item))
-        self.pipes['websocket_server'].send(('broadcast', json.dumps(['playing', item_id])))
+        self.pipes['websocket_server'].send(('broadcast', json.dumps(['playing', {'item_id': item_id, 'path':
+                                                                                  item['path']}])))
         self.lastval = item_id
 
     def msg_keys(self, msg):
