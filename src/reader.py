@@ -68,7 +68,7 @@ class RfidReader(multiprocessing.Process):
                         continue
                     logger.info("Card Scanned: %s" % rfidData)
                     if rfidData in self.cards:
-                        self.msg_queue.put(ReaderMsg("scan", self.cards[rfidData]))
+                        self.msg_queue.put(ReaderMsg("scan", self.cards[rfidData], self.get_card_id(rfidData)))
                     else:
                         logger.info("Adding new card")
                         self.add_card(rfidData)

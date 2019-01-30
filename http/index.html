@@ -186,9 +186,12 @@
                 title.innerHTML += "<br/>raspberry is not connected to network"
             }
         }
+	else if(msg_type == 'scan_card') {
+	    writeToScreen('Card scanned: ' + data['hid']);
+	}
         else if(msg_type == 'playing') {
             Alarm(1);
-            writeToScreen("Player is playing");
+            writeToScreen("Player is playing: " + data['path']);
         }
         else {
             writeToScreen("Error, I don't know how to handle this message");
@@ -422,7 +425,7 @@
     function writeToScreen(message)
     {
         var log = document.getElementById("log");
-        while(log.children.length > 6) {
+        while(log.children.length > 12) {
         		log.children[log.children.length - 1].remove();
         }
         var entry = document.createElement("p");
