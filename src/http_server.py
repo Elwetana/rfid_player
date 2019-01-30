@@ -7,6 +7,7 @@ import logging
 import sqlite3
 import os
 from message import HttpMsg
+from config import WS_SERVER
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         f.close()
         # replace the 'template tag' {LastposTable} with table data
         html = html.replace('{LastposTable}', self.getLastposTable())
+        html = html.replace('{ws_address}', WS_SERVER.ws_address)
         self.wfile.write(html)
 
     def getLastposTable(self):

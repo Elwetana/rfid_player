@@ -23,6 +23,7 @@ import codecs
 import json
 from collections import deque
 from select import select
+from config import WS_SERVER
 
 
 logger = logging.getLogger(__name__)
@@ -559,7 +560,7 @@ class WebSocket(object):
 
 
 class WebSocketServer(multiprocessing.Process):
-    ip_address = '192.168.88.59'
+    ip_address = WS_SERVER.ip_address
     port = 8000
 
     def __init__(self, pipe, msg_queue, selectInterval=0.1):
