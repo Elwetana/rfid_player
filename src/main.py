@@ -414,8 +414,8 @@ if __name__ == "__main__":
     ferr = open('../data/stderr.log', 'a')
     fout.write("---------------------------------------\n**** %s\n" % time.asctime())
     ferr.write("---------------------------------------\n**** %s\n" % time.asctime())
-    #sys.stdout = fout
-    #sys.stderr = ferr
+    sys.stdout = fout
+    sys.stderr = ferr
     print 'Starting'
     dispatcher = Dispatcher()
     dispatcher.start()
