@@ -194,18 +194,24 @@ class Player(multiprocessing.Process):
         # for music: <desc> <track index> "track"
         # for radio: "radio" <desc>
         msg = ""
-        number = ""
+        number = u""
         if file_index < 0: #happens when prev message was received too many times. Should be probably fixed elsewhere
             file_index = 0
         if file_index < 20:
             number = self.ui['numbers']["%s" % (file_index + 1)]
-        elif file_index < 100:
-            tens_index = ((file_index + 1) // 10) * 10 
-            ones_index = ((file_index + 1) % 10)
-            if ones_index == 0:
-                number = u"{tens}".format(tens = self.ui['numbers']["%s" % tens_index])
+        elif file_index < 999:
+            if file_index == 99:
+                number = u"{cent}".format(cent = self.ui['numbers']['100th'])
             else:
-                number = u"{tens} {ones}".format(tens = self.ui['numbers']["%s" % tens_index], ones = self.ui['numbers']["%s" % ones_index])
+                hund_index = ((file_index + 1) // 100) * 100
+                tens_index = ((file_index + 1) // 10) * 10 
+                ones_index = ((file_index + 1) % 10)
+                if hund_index > 0:
+                    number = u"{hund} ".format(hund = self.ui['numbers']["%s" % hund_index])
+                if ones_index == 0:
+                    number += u"{tens}".format(tens = self.ui['numbers']["%s" % tens_index])
+                else:
+                    number += u"{tens} {ones}".format(tens = self.ui['numbers']["%s" % tens_index], ones = self.ui['numbers']["%s" % ones_index])
         if self.entity_type == 'book':
             msg_cont = u"{play} {start}.".format(play = self.ui['states']['play'], start = self.ui['states']['start'])
             if seek_time > 0:

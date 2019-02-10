@@ -1,0 +1,124 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ui>
+    <lang default="cs" />
+    <numbers>
+        <number id="1">
+            <txt en="first" cs="první" />
+        </number>
+        <number id="2">
+            <txt en="second" cs="druhá" />
+        </number>
+        <number id="3">
+            <txt en="third" cs="třetí" />
+        </number>
+        <number id="4">
+            <txt en="fourth" cs="čtvrtá" />
+        </number>
+        <number id="5">
+            <txt en="fifth" cs="pátá" />
+        </number>
+        <number id="6">
+            <txt en="sixth" cs="šestá" />
+        </number>
+        <number id="7">
+            <txt en="seventh" cs="sedmá" />
+        </number>
+        <number id="8">
+            <txt en="eighth" cs="osmá" />
+        </number>
+        <number id="9">
+            <txt en="nineth" cs="devátá" />
+        </number>
+        <number id="10">
+            <txt en="tenth" cs="desátá" />
+        </number>
+        <number id="11">
+            <txt en="eleventh" cs="jedenáctá" />
+        </number>
+        <number id="12">
+            <txt en="twelfth" cs="dvanáctá" />
+        </number>
+        <number id="13">
+            <txt en="thirteenth" cs="třináctá" />
+        </number>
+        <number id="14">
+            <txt en="fourteenth" cs="čtrnáctá" />
+        </number>
+        <number id="15">
+            <txt en="fifteenth" cs="patnáctá" />
+        </number>
+        <number id="16">
+            <txt en="sixteenth" cs="šestnáctá" />
+        </number>
+        <number id="17">
+            <txt en="seventeenth" cs="sedmnáctá" />
+        </number>
+        <number id="18">
+            <txt en="eighteenth" cs="osmnáctá" />
+        </number>
+        <number id="19">
+            <txt en="nineteenth" cs="devatenáctá" />
+        </number>
+        <number id="20">
+            <txt en="twentieth" cs="dvacátá" />
+        </number>
+        <number id="30">
+            <txt en="thirtieth" cs="třicátá" />
+        </number>
+        <number id="40">
+            <txt en="fourtieth" cs="čtyřicátá" />
+        </number>
+        <number id="50">
+            <txt en="fiftieth" cs="padesátá" />
+        </number>
+        <number id="60">
+            <txt en="sixtieth" cs="šedesátá" />
+        </number>
+        <number id="70">
+            <txt en="seventieth" cs="sedmdesátá" />
+        </number>
+        <number id="80">
+            <txt en="eightieth" cs="osmdesátá" />
+        </number>
+        <number id="90">
+            <txt en="ninetieth" cs="devadesátá" />
+        </number>
+        <number id="100">
+            <txt en="hundred" cs="sto" />
+        </number>
+        <number id="100th">
+            <txt en="hundredth" cs="stá" />
+        </number>
+    </numbers>
+    <states>
+        <state id="cont">
+            <txt en="continuing" cs="pokračuji" />
+        </state>
+        <state id="start">
+            <txt en="from start" cs="od začátku" />
+        </state>
+        <state id="end">
+            <txt en="skipping to end" cs="přeskakuji na" />
+        </state>
+        <state id="play">
+            <txt en="playing" cs="přehrávám" />
+        </state>
+    </states>
+    <entities>
+        <entity id="chapter">
+            <txt en="chapter" cs="kapitola" />
+        </entity>
+        <entity id="track">
+            <txt en="track" cs="skladba" />
+        </entity>
+        <entity id="book">
+            <txt en="book" cs="knihu" />
+        </entity>
+        <entity id="audio">
+            <txt en="music" cs="hudbu" />
+        </entity>
+        <entity id="radio">
+            <txt en="radio stream" cs="rádio" />
+        </entity>
+    </entities>
+</ui>
