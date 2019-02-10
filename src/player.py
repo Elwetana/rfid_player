@@ -149,7 +149,11 @@ class Player(multiprocessing.Process):
                 f = self.get_radio_file()
             else:
                 f = self.get_audio_file(files)
-            mf = mad.MadFile(f)
+            try:
+                mf = mad.MadFile(f)
+            except IOError:
+                logger.error("Error opening file %s for playing" % f)
+                break
             if self.seek_time > 5000:  #seeking is broken a bit, we have to flush the buffer by reading
                 mf.seek_time(self.seek_time - 5000)
                 for i in range(100):

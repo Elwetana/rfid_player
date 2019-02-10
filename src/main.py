@@ -41,11 +41,12 @@ class Dispatcher:
         self.list_file = list_file
         self.local_dir = local_dir
         self.remote_dir = remote_dir
-        self.remote_present = False
+        self._remote_present = False
         self.tree = {}
         self.items = None
         self.item_verification = None
-        self.init_list()
+        if not self.remote_present():  # this will call init_list() if remote_present() == True
+            self.init_list()
         self.state = State.stopped
         self.time = 0
         self.workers = {}
@@ -103,6 +104,8 @@ class Dispatcher:
         if msg.action == "scan":
             self.pipes['websocket_server'].send(('broadcast', json.dumps(['scan_card', {"item_id": msg.value, "hid": msg.hid}])))
             if (self.lastval != msg.value) or (self.state != State.playing):
+                if not self._remote_present:
+                    self.remote_present()  # if remote become present, we need to re-init card list
                 if msg.value in self.items:
                     self.play_item(msg.value)
                 else:
@@ -121,7 +124,7 @@ class Dispatcher:
         self.state = State.playing
         root_folder = self.local_dir
         if not self.items[item_id]['local']:
-            if self.remote_present:
+            if self.remote_present():
                 root_folder = self.remote_dir
             else:
                 root_folder = 'NOT_LOCAL'
@@ -202,7 +205,7 @@ class Dispatcher:
             update_data = msg.payload
             self.update_item(update_data['path'], update_data['id'], update_data['desc'])
         if msg.value == 'is_remote':
-            self.pipes['websocket_server'].send(('broadcast', json.dumps(['has_remote', self.remote_present])))
+            self.pipes['websocket_server'].send(('broadcast', json.dumps(['has_remote', self.remote_present()])))
         return False
 
     def msg_unknown(self, msg):
@@ -253,7 +256,7 @@ class Dispatcher:
         book = books[0]
         book.attrib['id'] = "%s" % item_id
         book.attrib['desc'] = desc
-        if self.remote_present:
+        if self.remote_present():
             self.tree.write(os.path.join(self.remote_dir, self.list_file), encoding='UTF-8')
         self.tree.write(os.path.join(self.local_dir, self.list_file), encoding='UTF-8')
 
@@ -275,7 +278,7 @@ class Dispatcher:
         logger.warning("Adding path %s to items file" % path)
         self.items[item_id] = {'path': path, 'desc': path, 'type': 'book'}
         self.tree.getroot().append(ET.Element(tag='item', attrib={'id': "%s" % item_id, 'path': path, 'type': 'book', 'desc': path}))
-        if self.remote_present:
+        if self.remote_present():
             self.tree.write(os.path.join(self.remote_dir, self.list_file), encoding='UTF-8')
         self.tree.write(os.path.join(self.local_dir, self.list_file), encoding='UTF-8')
 
@@ -319,7 +322,7 @@ class Dispatcher:
             if is_remote: # we shall be verifying the local dir later
                 self.item_verification[d] = {}
             else:
-                if self.remote_present and not(d in self.item_verification):
+                if self._remote_present and not(d in self.item_verification):
                     self.item_verification[d] = {'dir': {'error': 'the whole directory is missing'}}
             dir_name = os.path.join(data_dir, d)
             if not os.path.isdir(dir_name): # this is true for logs and XML files in data dir
@@ -349,7 +352,7 @@ class Dispatcher:
                 if d_uni in checklist:
                     del checklist[d_uni]
                 else:
-                    if is_remote or not self.remote_present:
+                    if is_remote or not self._remote_present:
                         self.add_item(d_uni, max_item_id)
                         max_item_id += 1
                     else:
@@ -357,7 +360,7 @@ class Dispatcher:
             else:
                 logger.error("Subdirectory %s contains no mp3 files" % d)
         for cl in checklist:
-            if is_remote or not self.remote_present:
+            if is_remote or not self._remote_present:
                 logger.error("Path %s present in item xml file, but not found on disk" % cl)
                 del self.items[checklist[cl]]
             else:
@@ -389,8 +392,7 @@ class Dispatcher:
         :return: None
         """
         self.items = {}
-        if os.path.exists(os.path.join(self.remote_dir, self.list_file)):
-            self.remote_present = True
+        if self._remote_present:
             self.item_verification = {}
             self.read_list(self.remote_dir)
             logger.debug("Starting remote verification")
@@ -402,6 +404,14 @@ class Dispatcher:
         else:
             self.read_list(self.local_dir)
             self.check_list(self.local_dir)
+
+    def remote_present(self):
+        remote_status = os.path.exists(os.path.join(self.remote_dir, self.list_file))
+        logger.warning("Checking remote status. Old status: %s, New status %s" % (self._remote_present, remote_status))
+        if remote_status != self._remote_present:
+            self._remote_present = remote_status
+            self.init_list()
+        return remote_status
 
 
 if __name__ == "__main__":
