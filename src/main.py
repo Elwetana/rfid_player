@@ -27,6 +27,7 @@ from led import LedControl
 from reader import RfidReader
 from http_server import HttpServer
 from ws_server import WebSocketServer
+from power_switch import PowerSwitch
 import os, time, sys, copy
 import sqlite3
 import json
@@ -58,7 +59,8 @@ class Dispatcher:
             'player': self.msg_player,
             'save_pos': self.msg_savepos,
             'http': self.msg_http,
-            'ws': self.msg_ws
+            'ws': self.msg_ws,
+            'power': self.msg_power
         }
 
     def create_worker(self, worker_name, worker_class, needs_pipe, needs_queue, *args):
@@ -75,13 +77,15 @@ class Dispatcher:
 
     def start(self):
         self.msg_queue = multiprocessing.Queue()
-        self.create_worker('key_listener', KeyListener, False, True, ['/dev/input/event0','/dev/input/event1'])
+        self.create_worker('key_listener', KeyListener, True, True, ['/dev/input/event0','/dev/input/event1'])
         self.create_worker('led_control', LedControl, True, False)
         self.create_worker('volume_control', VolumeControl, True, False)
         self.create_worker('player', Player, True, True)
         self.create_worker('rfid_reader', RfidReader, True, True)
         self.create_worker('http_server', HttpServer, True, True)
         self.create_worker('websocket_server', WebSocketServer, True, True)
+        self.create_worker('power_switch', PowerSwitch, True, True)
+        logger.warning("All workers created")
 
         while True:
             msg = self.msg_queue.get()
@@ -91,12 +95,10 @@ class Dispatcher:
             if self.actions.get(msg.msg_type, self.msg_unknown)(msg):
                 logger.warning("Terminate message received")
                 break
-        self.workers['key_listener'].join() #tohle nefunguje, kdyz terminate msg. prijde ze serveru, protoze key_listener porad ceka
         for worker in self.workers:
-            if worker != 'key_listener':
-                logger.warning('Trying to terminate the %s' % worker)
-                self.pipes[worker].send(('quit',0))
-                self.workers[worker].join()
+            logger.warning('Trying to terminate the %s' % worker)
+            self.pipes[worker].send(('quit',0))
+            self.workers[worker].join()
         logger.warning('Terminating')
 
     def msg_rfid(self, msg):
@@ -207,6 +209,10 @@ class Dispatcher:
         if msg.value == 'is_remote':
             self.pipes['websocket_server'].send(('broadcast', json.dumps(['has_remote', self.remote_present()])))
         return False
+
+    def msg_power(self, msg):
+        logger.warning("Program terminated by the power switch")
+        return True
 
     def msg_unknown(self, msg):
         logger.info("Unknown message: %s" % msg)

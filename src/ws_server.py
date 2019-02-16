@@ -673,6 +673,7 @@ class WebSocketServer(multiprocessing.Process):
                     client.handleClose()
                     del self.connections[failed]
                     self.listeners.remove(failed)
+        logger.warning('WebSocket server terminating')
 
 class MessageBroker(WebSocket):
 

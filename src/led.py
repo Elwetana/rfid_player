@@ -45,7 +45,7 @@ class LedControl(multiprocessing.Process):
             if self.is_playing != '':
                 self.play_led()
 
-        logger.info('Terminating Led Controler')
+        logger.warning('Terminating Led Controler')
 
     def init_pins(self):
         GPIO.setmode(GPIO.BOARD) ## Use board pin numbering

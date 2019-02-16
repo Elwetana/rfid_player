@@ -17,30 +17,23 @@ class KeyMsg(Msg):
         self.value = action
         self.needs_ack = True
 
-"""
-The problem here is that the devices[fd].read() call does not timeout, so the loop in run() method will never terminate,
-unless an event is passed to it -- therefore it's not possible to join this process if the main program wants to terminate
-for other reasons.
-
-There are two solutions I can see: inserting an event in the device to terminate the loop or rewriting this class
-so that it works with asyncore loop() (see http://python-evdev.readthedocs.org/en/latest/tutorial.html#reading-events-with-asyncore)
-The latter approach seems better to me.
-"""
 class KeyListener(multiprocessing.Process):
 
-    def __init__(self, msg_queue, dev_names, keymap_file = '../data/keymap.xml'):
+    def __init__(self, pipe, msg_queue, dev_names, keymap_file = '../data/keymap.xml'):
         multiprocessing.Process.__init__(self)
+        self.pipe = pipe
         self.msg_queue = msg_queue
         self.read_keymap(keymap_file)
 	available_devices = list_devices()
 	devices_to_use = [d for d in dev_names if d in available_devices]
         devices = map(InputDevice, devices_to_use)
         self.devices = {dev.fd: dev for dev in devices}
+        self.timeout = 0.1  # in seconds
 
     def run(self):
         logger.warning("Key listener running")
         while True:
-            r,w,x = select(self.devices, [], [])
+            r,w,x = select(self.devices, [], [], self.timeout)
             for fd in r:
                 for event in self.devices[fd].read():
                     if (event.type != ecodes.EV_REL) and (event.type != ecodes.EV_SYN):
@@ -58,6 +51,14 @@ class KeyListener(multiprocessing.Process):
                                 if self.actions[code] == 'error':
                                     logger.warning("Error in KeyListner, respawn")
                                     return
+            if self.pipe.poll():
+                logger.info("key listener message received")
+                cmnd = self.pipe.recv()
+                if cmnd[0] == 'quit':
+                    break
+                else:
+                    logger.error("Message not recognized for key listener module: %s" % cmnd[0])
+        logger.warning('Terminating Key Listener')
 
     def read_keymap(self, keymap_file):
         self.actions = {}

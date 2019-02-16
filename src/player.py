@@ -1,7 +1,9 @@
 #!/usr/bin/python
 import multiprocessing
 from message import Msg
-import mad, ao, sys
+import mad
+import alsaaudio as aa
+import sys
 import sqlite3, os, subprocess, socket
 import os.path
 import xml.etree.ElementTree as ET
@@ -158,7 +160,8 @@ class Player(multiprocessing.Process):
                 mf.seek_time(self.seek_time - 5000)
                 for i in range(100):
                     mf.read()
-            dev = ao.AudioDevice('alsa', rate=mf.samplerate())
+            dev = aa.PCM(device='default')
+            dev.setrate(mf.samplerate())
             iSave = 0
             why_stopped = ''
             logger.info("Starting to play")
@@ -169,7 +172,7 @@ class Player(multiprocessing.Process):
                     if buf is None:
                         why_stopped = 'finished'
                     break
-                dev.play(buf, len(buf))
+                dev.wriete(buffer(buf))
                 #we cannot save in this process, we would get buffer underrun
                 if not self.isRadio:
                     iSave += 1
