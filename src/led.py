@@ -75,6 +75,29 @@ class LedControl(multiprocessing.Process):
         GPIO.output(self.pins['green2'], False)
         GPIO.output(self.pins['red1'], True)
 
+    def blink_red(self):
+        GPIO.output(self.pins['red1'], True)
+        time.sleep(1)
+        GPIO.output(self.pins['red1'], False)
+
+    def blink_yellow(self):
+        GPIO.output(self.pins['yellow2'], True)
+        time.sleep(1)
+        GPIO.output(self.pins['yellow2'], False)
+
+
+    def blink_green(self):
+        GPIO.output(self.pins['green2'], True)
+        time.sleep(1)
+        GPIO.output(self.pins['green2'], False)
 
 if __name__ == "__main__":
     print "LedControl class"
+    logging.basicConfig(level=logging.INFO)
+    to_pipe, from_pipe = multiprocessing.Pipe()
+    ledControl = LedControl(to_pipe)
+    ledControl.init_pins()
+    ledControl.blink_red()
+    ledControl.blink_yellow()
+    ledControl.blink_green()
+

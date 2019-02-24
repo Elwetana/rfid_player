@@ -172,7 +172,7 @@ class Player(multiprocessing.Process):
                     if buf is None:
                         why_stopped = 'finished'
                     break
-                dev.wriete(buffer(buf))
+                dev.write(buffer(buf))
                 #we cannot save in this process, we would get buffer underrun
                 if not self.isRadio:
                     iSave += 1

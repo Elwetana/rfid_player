@@ -22,10 +22,18 @@ The schematics is in file schema.svg and schema.png in this folder.
 
 ## Dependencies
 
-* libao: there is a bug in libao alsa plugin for current Raspbian (Wheezy). See this link: http://stackoverflow.com/questions/8963915/libao-example-doesnt-work-when-compiled-as-python-module
+* pyserial
+* pyalsaaudio: https://github/larsimmisch/pyalsaaudio
 * evdev: https://github.com/gvalkov/python-evdev
 * festival/festvox
 * pymad: https://github.com/jaqx0r/pymad (NB: do not use pip for this, as there is another package called mad; clone jaqx0r's repository and run setup; do apt-get install libmad0-dev beforehand)
+
+## Instalation
+
+* If you want to be able to play audio files from a Samba share, you must mount it: insert the following line into /etc/fstab
+  //<IP address>/<share name>  /mnt/z      cifs    vers=1.0,user=guest,password=     0       0
+* Wired ACT LED out, add following line to /boot/config.txt (for RPi 3)
+  dtoverlay=pi3-act-led,gpio=23,activelow=on 
 
 ## Conclusion
 If you find this idea interesting to you, please drop me a line. Thank you.

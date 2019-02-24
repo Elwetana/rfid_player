@@ -73,7 +73,8 @@ if __name__ == "__main__":
     print 'This is module for KeyListener class'
     logging.basicConfig(level=logging.INFO)
     msg_queue = multiprocessing.Queue()
-    keylistener = KeyListener(msg_queue, ['/dev/input/event0','/dev/input/event1'])
+    t, f = multiprocessing.Pipe()
+    keylistener = KeyListener(t, msg_queue, ['/dev/input/event0','/dev/input/event1'])
     keylistener.start()
     while True:
         msg = msg_queue.get()

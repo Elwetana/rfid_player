@@ -1,7 +1,6 @@
 #!/usr/bin/python
-#import swmixer
-#import time
 
+import alsaaudio
 import multiprocessing
 import os
 import logging
@@ -13,24 +12,23 @@ class VolumeControl(multiprocessing.Process):
     def __init__(self, pipe):
         multiprocessing.Process.__init__(self)
         self.pipe = pipe
-        self.set_volume = 50
+        self.set_volume = 100
 
     def run(self):
         while True:
             if self.pipe.poll(1):
                 cmnd = self.pipe.recv()
                 if cmnd[0] == 'quit':
-                    logger.warning("Volume control termnating")
                     break
                 elif cmnd[0] == 'up':
                     self.set_volume += cmnd[1]
                 elif cmnd[0] == 'down':
                     self.set_volume -= cmnd[1]
-                #print 'Volume = {volume}%' .format(volume = set_volume)
-                set_vol_cmd = 'sudo amixer cset numid=1 -- {volume}% > /dev/null' .format(volume = self.set_volume)
-                #print set_vol_cmd
-                os.system(set_vol_cmd)  # set volume
-                #time.sleep(0.1)
+                self.set_volume = min(max(self.set_volume, 0), 100)
+                logger.warning("Setting volume to %s" % self.set_volume)
+                mixer = alsaaudio.Mixer('PCM')
+                mixer.setvolume(self.set_volume, alsaaudio.MIXER_CHANNEL_ALL)
+        logger.warning("Volume control terminating")
 
 if __name__ == "__main__":
     print "Volume control class"

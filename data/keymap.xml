@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<keymap>
+<!-- keymap>
     <map key="KEY_RIGHT" action="ff" />
     <map key="KEY_LEFT" action="bb" />
     <map key="KEY_ENTER" action="stop" />
@@ -13,4 +13,17 @@
     <map key="KEY_PLAYPAUSE" action="prev_track" />
     <map key="KEY_POWER" action="quit" />
     <map key="KEY_REFRESH" action="error" />
+</keymap-->
+
+<keymap>
+    <map key="KEY_BACKSPACE" action="ff" />
+    <map key="KEY_NUMLOCK" action="bb" />
+    <map key="KEY_KPENTER" action="stop" />
+    <map key="KEY_KP0" action="play" />
+    <map key="KEY_KPPLUS" action="vol_up" />
+    <map key="KEY_KP4" action="vol_down" />
+    <map key="KEY_KPMINUS" action="next_track" />
+    <map key="KEY_KP7" action="prev_track" />
+    <!-- map key="KEY_CALC" action="quit" / -->
 </keymap>
+
