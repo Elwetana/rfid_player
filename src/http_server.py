@@ -6,6 +6,7 @@ import BaseHTTPServer
 import logging
 import sqlite3
 import os
+import codecs
 from message import HttpMsg
 from config import WS_SERVER
 
@@ -38,18 +39,20 @@ class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         self.wfile.write(html)
 
     def getLastposTable(self):
-        html = ''
+        html = '<p>Last positions</p>\n'
         html += '<table>\n'
         html += '<tr><th>Folder</th><th>File Index</th><th>Position</th><th>Completed</th><th>File Count</th></tr>\n'
         conn = sqlite3.connect(os.path.join(self.dataRoot, '../src/player.db'))
         rows = conn.execute('select foldername, fileindex, position, completed from lastpos;')
         for row in rows.fetchall():
-            try:
-                files = os.listdir(os.path.join(self.dataRoot, row[0]))
-            except OSError:  # this happens when the book was deleted
-                continue
+            n_files = -1
+            # try:
+            #     files = os.listdir(os.path.join(self.dataRoot, row[0]))
+            #     n_files = len(files)
+            # except OSError:  # this happens when the book was deleted
+            #     pass 
             html += '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n' % \
-                    (row[0], row[1], row[2], row[3], len(files))
+                    (codecs.encode(row[0],"utf8"), row[1], row[2], row[3], n_files)
         html += '</table>\n'
         return html
 

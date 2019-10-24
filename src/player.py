@@ -146,6 +146,8 @@ class Player(multiprocessing.Process):
         if do_speak:
             self.speak(self.seek_time, self.file_index)
         why_stopped = 'finished'
+        if self.file_index >= len(files): # this can happen if we e.g. remove files from the directory
+            self.file_index = 0
         while self.file_index < len(files) and why_stopped == 'finished':
             if self.isRadio:
                 f = self.get_radio_file()
