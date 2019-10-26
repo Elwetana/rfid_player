@@ -7,7 +7,7 @@ import logging
 from message import Msg
 import json
 import os.path
-from config import READER
+from config import READER, PATHS
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class RfidReader(multiprocessing.Process):
     baudrate = READER.baudrate
     timeout = READER.timeout
 
-    def __init__(self, pipe, msg_queue, local_dir='../data', remote_dir='/mnt/z/Audio/_audio_books/_pi',
+    def __init__(self, pipe, msg_queue, local_dir=PATHS.local_root, remote_dir=PATHS.remote_root,
                  cardmap_file='cardmap.xml'):
         multiprocessing.Process.__init__(self)
         self.pipe = pipe

@@ -8,7 +8,7 @@ import sqlite3
 import os
 import codecs
 from message import HttpMsg
-from config import WS_SERVER
+from config import WS_SERVER, PATHS
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,7 @@ class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         # replace the 'template tag' {LastposTable} with table data
         html = html.replace('{LastposTable}', self.getLastposTable())
         html = html.replace('{ws_address}', WS_SERVER.ws_address)
+        html = html.replace('{ServerName}', WS_SERVER.server_name)
         self.wfile.write(html)
 
     def getLastposTable(self):
@@ -46,11 +47,17 @@ class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         rows = conn.execute('select foldername, fileindex, position, completed from lastpos;')
         for row in rows.fetchall():
             n_files = -1
-            # try:
-            #     files = os.listdir(os.path.join(self.dataRoot, row[0]))
-            #     n_files = len(files)
-            # except OSError:  # this happens when the book was deleted
-            #     pass 
+            try:
+                files = os.listdir(os.path.join(PATHS.local_root, row[0]))
+                n_files = len(files)
+            except OSError:  # this happens when the book was deleted
+                n_files = -2
+            if n_files == -2:
+                try:
+                    files = os.listdir(os.path.join(PATHS.remote_root, row[0]))
+                    n_files = len(files)
+                except OSError:
+                    n_files = -3
             html += '<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n' % \
                     (codecs.encode(row[0],"utf8"), row[1], row[2], row[3], n_files)
         html += '</table>\n'

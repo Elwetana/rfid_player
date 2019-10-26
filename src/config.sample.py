@@ -22,5 +22,9 @@ class READER:
 class WS_SERVER:
     ip_address = get_local_ip()
     ws_address = 'ws://%s:8000' % ip_address
+    server_name = 'BIG BOX'
 
+class PATHS:
+    local_root = '../data'
+    remote_root = '/mnt/z/Audio/_audio_books/_pi'
 
