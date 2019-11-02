@@ -1,14 +1,15 @@
 #!/usr/bin/python
+
 import multiprocessing
+from time import sleep
 from message import Msg
-import mad
-import alsaaudio as aa
 import sys
 import sqlite3, os, subprocess, socket
 import os.path
 import xml.etree.ElementTree as ET
 import logging
 import urlparse
+import vlc
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +143,7 @@ class Player(multiprocessing.Process):
         return files
 
     def play(self, do_speak = True):
+        logger.info("Getting ready to play")
         files = self.get_files()
         if do_speak:
             self.speak(self.seek_time, self.file_index)
@@ -149,53 +151,58 @@ class Player(multiprocessing.Process):
         if self.file_index >= len(files): # this can happen if we e.g. remove files from the directory
             self.file_index = 0
         while self.file_index < len(files) and why_stopped == 'finished':
+            logger.info("opening MediaPlayer")
             if self.isRadio:
                 f = self.get_radio_file()
             else:
                 f = self.get_audio_file(files)
             try:
-                mf = mad.MadFile(f)
-            except IOError:
+                mp = vlc.MediaPlayer(f)
+                mp.play()
+            except VLCException:
                 logger.error("Error opening file %s for playing" % f)
                 break
-            if self.seek_time > 5000:  #seeking is broken a bit, we have to flush the buffer by reading
-                mf.seek_time(self.seek_time - 5000)
-                for i in range(100):
-                    mf.read()
-            dev = aa.PCM(device='default')
-            dev.setrate(mf.samplerate())
+            logger.info("seeking file")
+            if self.seek_time > 10000L: # we start a little bit before the actual last time, for context
+                mp.set_time(self.seek_time - 10000L)
+            status = mp.get_state()
+            if not(status == vlc.State.Opening or status == vlc.State.Playing):
+                logger.fatal("Cannot open file %s" % f)
+                break
+            while not status == vlc.State.Playing:
+                sleep(1)
+                status = mp.get_state()
             iSave = 0
-            why_stopped = ''
+            why_stopped = 'finished'
             logger.info("Starting to play")
             self.msg_queue.put(PlayerMsg('started', self.isRadio))
-            while True:
-                buf = mf.read()
-                if (buf is None) or self.pipe.poll():
-                    if buf is None:
-                        why_stopped = 'finished'
-                    break
-                dev.write(buffer(buf))
-                #we cannot save in this process, we would get buffer underrun
+            while mp.is_playing():
+                sleep(1)
                 if not self.isRadio:
                     iSave += 1
-                    if iSave == 100:
-                        self.seek_time = mf.current_time()
-                        self.msg_queue.put(SavePosMsg((self.seek_time, self.file_index, self.folder_name)))
+                    self.seek_time = mp.get_time()
+                    if iSave == 10:
+                        # self.msg_queue.put(SavePosMsg((self.seek_time, self.file_index, self.folder_name)))
+                        self.save_pos()
                         iSave = 0
-            if not self.isRadio:
-                self.seek_time = mf.current_time()
+                if self.pipe.poll():
+                    mp.stop()
+                    self.save_pos()
+                    why_stopped = 'message'
             if why_stopped == 'finished':
                 self.seek_time = 0
                 self.file_index += 1
-            #now the whole system may be already quitting and message queue will not be inspected, so we must save position ourselves
-            if not self.isRadio:
-                conn = sqlite3.connect('player.db')
-                conn.execute('update lastpos set position = ?, fileindex = ? where foldername = ?', (self.seek_time, self.file_index % len(files), self.folder_name))
+
+    def save_pos(self):
+        if not self.isRadio:
+            logger.info("Saving position")
+            conn = sqlite3.connect('player.db')
+            conn.execute('update lastpos set position = ?, fileindex = ? where foldername = ?', (self.seek_time, self.file_index, self.folder_name))
+            conn.commit()
+            #if we finished the last track, we shall mark it as complete (this is purely statistical, is not used by the program)
+            if (self.seek_time == 0) and (self.file_index == len(files)):
+                conn.execute('update lastpos set completed = completed + 1 where foldername = ?', (self.folder_name, ))
                 conn.commit()
-                #if we finished the last track, we shall mark it as complete (this is purely statistical, is not used by the program)
-                if (self.seek_time == 0) and (self.file_index == len(files)):
-                    conn.execute('update lastpos set completed = completed + 1 where foldername = ?', (self.folder_name, ))
-                    conn.commit()
 
     def speak(self, seek_time, file_index):
         # Message:
