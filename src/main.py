@@ -208,6 +208,11 @@ class Dispatcher:
             self.update_item(update_data['path'], update_data['id'], update_data['desc'])
         if msg.value == 'is_remote':
             self.pipes['websocket_server'].send(('broadcast', json.dumps(['has_remote', self.remote_present()])))
+        if msg.value == 'play_track':
+            if msg.payload in self.items:
+                self.play_item(msg.payload)
+        if msg.value == 'stop_track':
+            self.pipes['player'].send(('stop',0))
         return False
 
     def msg_power(self, msg):
@@ -424,7 +429,7 @@ if __name__ == "__main__":
     os.chdir(os.path.dirname(__file__))
     ##logging.config.fileConfig('logging.conf')
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s: %(message)s',
-                        filename='../data/main.log', level=logging.WARNING)
+                        filename='../data/main.log', level=logging.INFO)
     #logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.error("====================== START ===========================")

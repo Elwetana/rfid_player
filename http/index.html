@@ -58,7 +58,7 @@
             }
             
             div.tables {
-                width: 900px;
+                width: 1000px;
                 margin: 0 auto;
             }
             
@@ -98,6 +98,10 @@
                 font-family: Calibri, sans-serif;
                 font-size: 12pt;
             }
+
+	    td.controls {
+		width: 50px;
+	    }
         </style>
 <script language="javascript" type="text/javascript">
     
@@ -373,9 +377,24 @@
             var elDesc = elRow.appendChild(document.createElement("td"));
             elDesc.innerHTML = rowData['desc'];
             elDesc.addEventListener("click", EditTable);
+	    if(id in cardHidLookup) {
+		var elControls = elRow.appendChild(document.createElement("td"));
+		elControls.className = 'controls';
+		var playButton = elControls.appendChild(document.createElement("button"));
+		playButton.id = 'play_' + cardHidLookup[id].hid;  
+	        playButton.innerHTML = '&rtrif;'; //</button><button>&DownArrowBar;</button>';
+		playButton.addEventListener("click", PlayTrack);
+		
+	    }
             table.appendChild(elRow);
         }
         listDiv.appendChild(table)
+    }
+
+    function PlayTrack()
+    {
+        var id = this.id.split('_');
+	sendMessage("play_track", id);
     }
     
     function MakeCardListTable()
@@ -448,7 +467,7 @@
         }
     }
 
-	function buttonClicked()
+    function buttonClicked()
     {
         i++;
    	    writeToScreen('test ' + i);
@@ -474,6 +493,7 @@
         <div id="cards" class="tables"><h3>List of unassigned cards</h3></div>
         <div id="log" style="width: 100%"><p></p></div>
         <!-- button id="tst" onclick="buttonClicked()">Test</button -->
+	<button id="stop_track" onclick="sendMessage('stop_track')">Stop playing</button>
         <p><a href="/reload">Reload items (mp3 list)</a></p>
         <p><a href="/reread">Reread the list of cards</a></p>
         <p><a href="/terminate">Terminate the main loop (you will need to restart the machine)</a></p>

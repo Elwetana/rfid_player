@@ -182,8 +182,8 @@ class Player(multiprocessing.Process):
                     iSave += 1
                     self.seek_time = mp.get_time()
                     if iSave == 10:
-                        # self.msg_queue.put(SavePosMsg((self.seek_time, self.file_index, self.folder_name)))
-                        self.save_pos()
+                        self.msg_queue.put(SavePosMsg((self.seek_time, self.file_index, self.folder_name)))
+                        # self.save_pos()
                         iSave = 0
                 if self.pipe.poll():
                     mp.stop()
