@@ -116,12 +116,13 @@ class Dispatcher:
                 logger.info("Ignoring accidental scan")
             return False
         if msg.action == "new":
-            self.pipes['websocket_server'].send(('broadcast', json.dumps(['new_card', {"item_id": msg.value, "hid": msg.hid}])))
+            self.pipes['websocket_server'].send(('broadcast', json.dumps(['new_card', {"item_id": msg.value, "hid": msg.hid, 'rfid': msg.rfid}])))
             return False
         logger.error("Unknown RFID action %s" % msg.action)
         return False
 
     def play_item(self, item_id):
+        logger.debug("Attempting to playe %s" % item_id)
         self.time = time.time()
         self.state = State.playing
         root_folder = self.local_dir
@@ -134,6 +135,7 @@ class Dispatcher:
                 'desc': self.items[item_id]['desc'],
                 'type': self.items[item_id]['type'],
                 'root': root_folder}
+        logger.debug("Sending message to player")
         self.pipes['player'].send(('start',item))
         self.pipes['websocket_server'].send(('broadcast', json.dumps(['playing', {'item_id': item_id, 'path':
                                                                                   item['path']}])))
@@ -209,8 +211,8 @@ class Dispatcher:
         if msg.value == 'is_remote':
             self.pipes['websocket_server'].send(('broadcast', json.dumps(['has_remote', self.remote_present()])))
         if msg.value == 'play_track':
-            if msg.payload in self.items:
-                self.play_item(msg.payload)
+            logger.debug("Received play_track message with payload %s" % msg.payload)
+            self.pipes['rfid_reader'].send(('sim_scan', msg.payload))
         if msg.value == 'stop_track':
             self.pipes['player'].send(('stop',0))
         return False
@@ -429,7 +431,7 @@ if __name__ == "__main__":
     os.chdir(os.path.dirname(__file__))
     ##logging.config.fileConfig('logging.conf')
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s: %(message)s',
-                        filename='../data/main.log', level=logging.INFO)
+                        filename='../data/main.log', level=logging.DEBUG)
     #logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.error("====================== START ===========================")

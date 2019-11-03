@@ -13,11 +13,12 @@ logger = logging.getLogger(__name__)
 
 class ReaderMsg(Msg):
 
-    def __init__(self, action, rfid_data, human_readable_id=0):
+    def __init__(self, action, card_key, human_readable_id=0, rfid=''):
         self.msg_type = 'rfid'
         self.action = action
-        self.value = rfid_data
+        self.value = card_key
         self.hid = human_readable_id
+        self.rfid = rfid
         self.needs_ack = True
 
 class RfidReader(multiprocessing.Process):
@@ -35,6 +36,7 @@ class RfidReader(multiprocessing.Process):
         self.remote_dir = remote_dir
         self.cardmap_file = cardmap_file
         self.cards = None
+        self.cards_ids = None
         self.read_cards()
 
     def run(self):
@@ -72,7 +74,7 @@ class RfidReader(multiprocessing.Process):
                     else:
                         logger.info("Adding new card")
                         self.add_card(rfidData)
-                        self.msg_queue.put(ReaderMsg("new", self.cards[rfidData], self.get_card_id(rfidData)))
+                        self.msg_queue.put(ReaderMsg("new", self.cards[rfidData], self.get_card_id(rfidData), rfidData))
                 if self.pipe.poll():
                     cmnd = self.pipe.recv()
                     logger.debug("Reader received message %s" % cmnd[0])
@@ -81,6 +83,12 @@ class RfidReader(multiprocessing.Process):
                     if cmnd[0] == 'get_cards':
                         cards_id = {rfid : dict(item_id=self.cards[rfid], hid=self.get_card_id(rfid)) for rfid in self.cards}
                         self.pipe.send(('cards', json.dumps(['cards', cards_id])))
+                    if cmnd[0] == 'sim_scan':
+                        if cmnd[1] in self.cards:
+                            rfidData = cmnd[1]
+                            self.msg_queue.put(ReaderMsg("scan", self.cards[rfidData], self.get_card_id(rfidData)))
+                        else:
+                            logger.warning("Unknown simulated card: %s" % cmnd[1])
                     if cmnd[0] == 'quit':
                         break
         except:

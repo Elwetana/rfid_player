@@ -21,6 +21,7 @@ case "$1" in
     echo "Stopping rfid reader"
     # kill application you want to stop
     killall main.py
+    killall festival
     ;;
   *)
     echo "Usage: /etc/init.d/rfid {start|stop}"

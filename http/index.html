@@ -220,7 +220,7 @@
     function HandleNewCard(data)
     {
         //cardList[data['rfid']] = {item_id: data['item_id'], hid: data['hid']};
-        cardHidLookup[data['item_id']] = { hid: data['hid'], used: false };
+        cardHidLookup[data['item_id']] = { hid: data['hid'], used: false, rfid: data['rfid'] };
         cardIdLookup[data['hid']] = data['item_id'];
         var itemTable = document.getElementById("items_table");
         var itemId = data['item_id'];
@@ -341,7 +341,7 @@
         cardIdLookup = {};  //hid => id
         for(var rfid in cardList) {
             cardIdLookup[cardList[rfid]['hid']] = cardList[rfid]['item_id'];
-            cardHidLookup[cardList[rfid]['item_id']] ={hid: cardList[rfid]['hid'], used: false};
+            cardHidLookup[cardList[rfid]['item_id']] ={hid: cardList[rfid]['hid'], used: false, rfid: rfid};
         }
         //create table: tr -> [td -> div -> hid, td -> path, td -> desc]
         var listDiv = document.getElementById("items")
@@ -381,7 +381,7 @@
 		var elControls = elRow.appendChild(document.createElement("td"));
 		elControls.className = 'controls';
 		var playButton = elControls.appendChild(document.createElement("button"));
-		playButton.id = 'play_' + cardHidLookup[id].hid;  
+		playButton.id = 'play_' + cardHidLookup[id].rfid;  
 	        playButton.innerHTML = '&rtrif;'; //</button><button>&DownArrowBar;</button>';
 		playButton.addEventListener("click", PlayTrack);
 		
@@ -394,7 +394,7 @@
     function PlayTrack()
     {
         var id = this.id.split('_');
-	sendMessage("play_track", id);
+	sendMessage("play_track", id[1]);
     }
     
     function MakeCardListTable()
