@@ -139,6 +139,7 @@ class Player(multiprocessing.Process):
         if self.isRadio:
             return ['']
         files = os.listdir(os.path.join(self.root_folder, self.folder_name))
+        files = [f for f in files if len(f) > 3 and f[-4:] == '.mp3']
         files.sort()
         return files
 

@@ -37,9 +37,9 @@ class HttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         f.close()
         logger.debug("Getting template stuff")
         # replace the 'template tag' {LastposTable} with table data
-        html = html.replace('{LastposTable}', self.getLastposTable())
         html = html.replace('{ws_address}', WS_SERVER.ws_address)
         html = html.replace('{ServerName}', WS_SERVER.server_name)
+        html = html.replace('{LastposTable}', self.getLastposTable())
         logger.debug("Writing output")
         self.wfile.write(html)
         logger.debug("Request processed")

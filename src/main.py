@@ -431,7 +431,7 @@ if __name__ == "__main__":
     os.chdir(os.path.dirname(__file__))
     ##logging.config.fileConfig('logging.conf')
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s: %(message)s',
-                        filename='../data/main.log', level=logging.DEBUG)
+                        filename='../data/main.log', level=logging.WARN)
     #logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
     logger.error("====================== START ===========================")

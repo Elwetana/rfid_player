@@ -85,11 +85,14 @@ class LedControl(multiprocessing.Process):
         time.sleep(1)
         GPIO.output(self.pins['yellow2'], False)
 
-
     def blink_green(self):
         GPIO.output(self.pins['green2'], True)
         time.sleep(1)
         GPIO.output(self.pins['green2'], False)
+
+    def turn_on_red(self):
+        GPIO.output(self.pins['red1'], True)
+        
 
 if __name__ == "__main__":
     print "LedControl class"
@@ -100,4 +103,5 @@ if __name__ == "__main__":
     ledControl.blink_red()
     ledControl.blink_yellow()
     ledControl.blink_green()
+    ledControl.turn_on_red()
 
