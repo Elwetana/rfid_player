@@ -38,7 +38,7 @@ class State:
 
 class Dispatcher:
 
-    def __init__(self, list_file = 'list.xml', local_dir = '../data/', remote_dir = '/mnt/z/Audio/_audio_books/_pi'):
+    def __init__(self, list_file = 'list.xml', local_dir = '../data/', remote_dir = '/mnt/z/_pi'):
         self.list_file = list_file
         self.local_dir = local_dir
         self.remote_dir = remote_dir
